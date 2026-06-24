@@ -777,9 +777,9 @@ function handleDataFiles(files){
     reader.onload=e=>{
       try{
         const data=new Uint8Array(e.target.result);
-        const wb=XLSX.read(data,{type:'array',cellDates:true});
+        const wb=XLSX.read(data,{type:'array',cellDates:false});
         const ws=wb.Sheets[wb.SheetNames[0]];
-        const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+        const json=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
         if(!json.length) throw new Error('No rows found');
         const headers=Object.keys(json[0]);
         S.fileQueue.push({name:file.name, headers, rows:json, uniqueCol:headers[0], status:'ok'});
