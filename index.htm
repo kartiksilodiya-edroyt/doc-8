@@ -770,19 +770,27 @@ function handleDataFiles(files){
 }
 
 function mergeQueue(){
-  // Set main dataset from first valid file for UI/preview
+  // Union of ALL files' headers for preview (so Step 3 dropdown shows every column)
   const valid=S.fileQueue.filter(f=>f.status==='ok');
   if(!valid.length) return;
-  S.dataset.headers=valid[0].headers;
+  const seen=new Set(); const allHeaders=[];
+  valid.forEach(f=>f.headers.forEach(h=>{ if(!seen.has(h)){seen.add(h);allHeaders.push(h);} }));
+  S.dataset.headers=allHeaders;
   S.dataset.uniqueCol=valid[0].uniqueCol;
   S.dataset.sourceFile=valid[0].name;
+  // Store per-file header map so Step 3 can show which file each col belongs to
+  S.dataset.fileHeaders=valid.map(f=>({name:f.name,headers:f.headers}));
 }
 
 function mergeQueueForMapping(){
   // Merge all valid files into S.dataset.rows, tagging each row with its source
   const valid=S.fileQueue.filter(f=>f.status==='ok');
   if(!valid.length) return;
-  S.dataset.headers=valid[0].headers;
+  // Union headers
+  const seen=new Set(); const allHeaders=[];
+  valid.forEach(f=>f.headers.forEach(h=>{ if(!seen.has(h)){seen.add(h);allHeaders.push(h);} }));
+  S.dataset.headers=allHeaders;
+  S.dataset.fileHeaders=valid.map(f=>({name:f.name,headers:f.headers}));
   S.dataset.uniqueCol=S.dataset.uniqueCol||valid[0].uniqueCol;
   const allRows=[];
   valid.forEach(f=>{
@@ -822,19 +830,51 @@ function viewStep3(){
 
     <div class="card">
       <h3>Field mapping</h3>
+      ${(S.dataset.fileHeaders||[]).length>1?`
+      <div class="note" style="margin-bottom:10px;">
+        <b>${S.dataset.fileHeaders.length} files loaded.</b> Columns from all files are shown below.
+        A column that only exists in some files will be blank for rows from other files — that's expected.
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
+          ${S.dataset.fileHeaders.map((f,i)=>`<span class="badge" style="background:#${['0a1533','0f2a1c','2e2410','1a1040'][i%4]};color:${['#5b8cff','#5fd394','#f0b54e','#a78bfa'][i%4]};">📄 ${esc(f.name)}: ${f.headers.length} cols</span>`).join('')}
+        </div>
+      </div>`:''}
       <div class="col-mapper">
-        ${INVOICE_FIELDS.map(f=>`
-          <div class="cm-row">
+        ${INVOICE_FIELDS.map(f=>{
+          // Build option list grouped by file when multiple files
+          const fh=S.dataset.fileHeaders||[];
+          const multiFile=fh.length>1;
+          let optHtml='<option value="">— type a fixed value —</option>';
+          if(multiFile){
+            // Group columns by which files they appear in
+            const colFileMap={};
+            S.dataset.headers.forEach(h=>{
+              colFileMap[h]=fh.filter(fi=>fi.headers.includes(h)).map(fi=>fi.name);
+            });
+            fh.forEach((fi,fi_i)=>{
+              const cols=fi.headers;
+              const color=['#5b8cff','#5fd394','#f0b54e','#a78bfa'][fi_i%4];
+              optHtml+=`<optgroup label="📄 ${fi.name}">`;
+              cols.forEach(h=>{ optHtml+=`<option value="${esc(h)}" ${S.mapping[f.key]===h?'selected':''}>${esc(h)}</option>`; });
+              optHtml+=`</optgroup>`;
+            });
+          } else {
+            S.dataset.headers.forEach(h=>{ optHtml+=`<option value="${esc(h)}" ${S.mapping[f.key]===h?'selected':''}>${esc(h)}</option>`; });
+          }
+          // Sample: find first row that actually has this column non-empty
+          const mappedCol=S.mapping[f.key];
+          let sampleVal=S.statics[f.key]||'';
+          if(mappedCol){
+            const found=S.dataset.rows.find(r=>getVal(r,mappedCol)!=='');
+            sampleVal=found?getVal(found,mappedCol):'(no data in any row)';
+          }
+          return`<div class="cm-row">
             <div class="cm-key">${esc(f.label)}${f.required?` <span style="color:var(--bad);">*</span>`:''}</div>
             <div class="cm-arrow">→</div>
-            <div class="cm-val"><select data-map="${esc(f.key)}">
-              <option value="">— type a fixed value —</option>
-              ${S.dataset.headers.map(h=>`<option value="${esc(h)}" ${S.mapping[f.key]===h?'selected':''}>${esc(h)}</option>`).join('')}
-            </select></div>
-            <div class="cm-val" style="margin-left:8px;"><input type="text" data-static="${esc(f.key)}" placeholder="or fixed value…" value="${esc(S.statics[f.key]||'')}" ${S.mapping[f.key]?'disabled':''}></div>
-            <div class="cm-sample">${esc(S.mapping[f.key]?getVal(sample,S.mapping[f.key]):(S.statics[f.key]||''))}</div>
-          </div>
-        `).join('')}
+            <div class="cm-val"><select data-map="${esc(f.key)}">${optHtml}</select></div>
+            <div class="cm-val" style="margin-left:8px;"><input type="text" data-static="${esc(f.key)}" placeholder="or fixed value…" value="${esc(S.statics[f.key]||'')}" ${mappedCol?'disabled':''}></div>
+            <div class="cm-sample" title="${esc(sampleVal)}">${esc(sampleVal)}</div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
     <div class="topright"><button class="btn" id="toStep4">Preview invoice →</button></div>
@@ -846,8 +886,16 @@ function wireStep3(){
     sel.addEventListener('change',e=>{
       const key=sel.dataset.map; S.mapping[key]=e.target.value;
       const si=document.querySelector(`[data-static="${key}"]`); if(si) si.disabled=!!e.target.value;
-      const sample=S.dataset.rows[0]||{};
-      const row=sel.closest('.cm-row'); if(row) row.querySelector('.cm-sample').textContent=e.target.value?getVal(sample,e.target.value):(S.statics[key]||'');
+      const cmRow=sel.closest('.cm-row');
+      if(cmRow){
+        let sampleVal=S.statics[key]||'';
+        if(e.target.value){
+          const found=S.dataset.rows.find(r=>getVal(r,e.target.value)!=='');
+          sampleVal=found?getVal(found,e.target.value):'(no data in any row)';
+        }
+        const sp=cmRow.querySelector('.cm-sample');
+        if(sp){sp.textContent=sampleVal;sp.title=sampleVal;}
+      }
     });
   });
   document.querySelectorAll('[data-static]').forEach(inp=>inp.addEventListener('input',e=>S.statics[inp.dataset.static]=e.target.value));
