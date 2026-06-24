@@ -195,7 +195,7 @@
    IndexedDB PERSISTENCE LAYER
    ============================================================ */
 const DB_NAME = 'docmerge_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_INVOICES = 'invoices';
 const STORE_PROFILES = 'profiles';
 
@@ -206,6 +206,11 @@ function openDB(){
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = e => {
       const d = e.target.result;
+      const oldV = e.oldVersion;
+      // v3: migrated from ArrayBuffer to base64 — drop old store to clear stale data
+      if(oldV < 3 && d.objectStoreNames.contains(STORE_INVOICES)){
+        d.deleteObjectStore(STORE_INVOICES);
+      }
       if(!d.objectStoreNames.contains(STORE_INVOICES)){
         const s = d.createObjectStore(STORE_INVOICES, {keyPath:'id'});
         s.createIndex('savedAt','savedAt'); s.createIndex('customer','customer'); s.createIndex('sourceFile','sourceFile');
@@ -234,10 +239,29 @@ function dbClearStore(store){
   return new Promise((res,rej)=>{ const r=dbTx(store,'readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
 }
 
-// Save invoice blobs to IndexedDB (stored as ArrayBuffers)
+// Convert Blob → base64 string (safe for IndexedDB across all browsers)
+async function blobToBase64(blob){
+  if(!blob) return null;
+  return new Promise((res,rej)=>{
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result); // "data:...;base64,XXXX"
+    reader.onerror = () => rej(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(dataUrl, mime){
+  if(!dataUrl) return null;
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return new Blob([bytes],{type:mime});
+}
+
+// Save invoice to IndexedDB as base64 strings (works reliably on Netlify/all browsers)
 async function saveInvoiceToDB(inv){
-  const pdfAB = inv.pdfBlob ? await inv.pdfBlob.arrayBuffer() : null;
-  const docxAB = inv.docxBlob ? await inv.docxBlob.arrayBuffer() : null;
+  const pdfB64  = await blobToBase64(inv.pdfBlob);
+  const docxB64 = await blobToBase64(inv.docxBlob);
   const record = {
     id: String(inv.id),
     customer: inv.customer,
@@ -246,8 +270,8 @@ async function saveInvoiceToDB(inv){
     docxName: inv.docxName,
     sourceFile: inv.sourceFile || 'unknown',
     savedAt: Date.now(),
-    pdfData: pdfAB,
-    docxData: docxAB
+    pdfB64,
+    docxB64
   };
   await dbPut(STORE_INVOICES, record);
 }
@@ -256,8 +280,8 @@ async function loadInvoicesFromDB(){
   const recs = await dbGetAll(STORE_INVOICES);
   return recs.map(r=>({
     ...r,
-    pdfBlob: r.pdfData ? new Blob([r.pdfData],{type:'application/pdf'}) : null,
-    docxBlob: r.docxData ? new Blob([r.docxData],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}) : null
+    pdfBlob:  r.pdfB64  ? base64ToBlob(r.pdfB64,  'application/pdf') : (r.pdfData  ? new Blob([r.pdfData],{type:'application/pdf'}) : null),
+    docxBlob: r.docxB64 ? base64ToBlob(r.docxB64, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') : (r.docxData ? new Blob([r.docxData],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}) : null)
   }));
 }
 
