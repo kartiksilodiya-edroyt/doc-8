@@ -3,1204 +3,1414 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DocMerge — Smart Invoice Generator</title>
+<title>Fidypay — Settlement Invoice Generator</title>
 <style>
-  :root{
-    --bg:#0f1115;--panel:#171a21;--panel2:#1d212a;--line:#2a2f3a;
-    --text:#e7e9ee;--muted:#9aa3b2;--accent:#5b8cff;--accent2:#7ee3c4;
-    --warn:#f0b54e;--bad:#ef6a6a;--good:#5fd394;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);min-height:100vh;}
-  .app{display:flex;min-height:100vh;}
-  .side{width:224px;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;flex-shrink:0;display:flex;flex-direction:column;}
-  .brand{font-weight:700;font-size:17px;letter-spacing:.2px;margin-bottom:2px;}
-  .brand span{color:var(--accent);}
-  .brand-sub{color:var(--muted);font-size:11px;margin-bottom:24px;}
-  .step{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:4px;transition:.15s;}
-  .step:hover{background:var(--panel2);}
-  .step.active{background:var(--panel2);color:var(--text);}
-  .step.done .dot{background:var(--good);color:#06210f;}
-  .step .dot{width:22px;height:22px;border-radius:50%;background:#2a2f3a;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
-  .step.active .dot{background:var(--accent);color:#06122b;}
-  .side-sep{height:1px;background:var(--line);margin:10px 0;}
-  .side-foot{margin-top:auto;font-size:11px;color:#5b6170;line-height:1.6;padding-top:16px;border-top:1px solid var(--line);}
-  .main{flex:1;padding:28px 36px;overflow-y:auto;max-height:100vh;}
-  h1{font-size:20px;margin-bottom:4px;}
-  .sub{color:var(--muted);font-size:13px;margin-bottom:22px;line-height:1.5;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px;}
-  .card h3{margin-bottom:12px;font-size:14px;}
-  .drop{border:1.5px dashed var(--line);border-radius:10px;padding:32px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;}
-  .drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:#15192233;}
-  .drop-icon{font-size:30px;margin-bottom:10px;}
-  .drop input{display:none;}
-  .btn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;display:inline-flex;align-items:center;gap:6px;}
-  .btn:hover{opacity:.85;}
-  .btn:disabled{opacity:.35;cursor:not-allowed;}
-  .btn.secondary{background:transparent;border:1px solid var(--line);color:var(--text);}
-  .btn.secondary:hover{border-color:var(--accent);color:var(--accent);}
-  .btn.ghost{background:transparent;border:none;color:var(--accent);padding:5px 8px;font-size:12px;}
-  .btn.danger{background:#3a1010;border:1px solid var(--bad);color:var(--bad);}
-  .btn.sm{padding:5px 10px;font-size:12px;}
-  .btn.xs{padding:3px 8px;font-size:11px;}
-  .btn.accent2{background:#1a3a2e;border:1px solid var(--accent2);color:var(--accent2);}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  .topright{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
-  select,input[type=text],input[type=number],input[type=search],textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:7px 9px;font-size:12.5px;font-family:inherit;}
-  select:focus,input:focus,textarea:focus{outline:1px solid var(--accent);}
-  label.lbl{font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;}
-  .field{margin-bottom:10px;}
-  table.preview{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;}
-  table.preview th,table.preview td{border:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
-  table.preview th{background:var(--panel2);color:var(--muted);font-weight:600;}
-  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin:2px;background:#222633;}
-  .tag.ok{color:var(--good);background:#0f2a1c;}
-  .tag.bad{color:var(--warn);background:#2e2410;}
-  .tag.info{color:var(--accent);background:#0a1533;}
-  .note{font-size:12px;color:var(--muted);background:#15192233;border:1px solid var(--line);padding:10px 12px;border-radius:7px;margin:10px 0;line-height:1.6;}
-  .note b{color:var(--text);}
-  .progress{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:10px 0;}
-  .progress>div{height:100%;background:var(--accent);width:0%;transition:.2s;}
-  .small{font-size:11.5px;color:var(--muted);}
-  .results-table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  .results-table th,.results-table td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;}
-  .results-table th{color:var(--muted);font-weight:600;font-size:11.5px;}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
-  .badge.good{background:#0f2a1c;color:var(--good);}
-  .badge.warn{background:#2e2410;color:var(--warn);}
-  .badge.info{background:#0a1533;color:var(--accent);}
-  .badge.purple{background:#1a1040;color:#a78bfa;}
-  .divider{height:1px;background:var(--line);margin:16px 0;}
-  .profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
-  .profile-field label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px;}
-  .profile-field input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:7px 9px;font-size:12.5px;}
-  .profile-card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;position:relative;}
-  .profile-card .pc-name{font-weight:600;font-size:13px;margin-bottom:2px;}
-  .profile-card .pc-gst{font-size:11px;color:var(--muted);}
-  .profile-card .pc-badges{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;}
-  .profile-card .pc-action{position:absolute;top:10px;right:10px;}
-  .profiles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px;}
-  .map-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
-  .map-row:last-child{border:none;}
-  .page{background:#fff;color:#111;padding:28px 32px;border-radius:6px;font-size:10.5px;box-shadow:0 6px 28px #0009;max-width:720px;margin:0 auto;}
-  .page .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #e5e5e5;}
-  .page .inv-co{font-size:15px;font-weight:800;color:#111;}
-  .page .inv-tagline{font-size:10px;color:#666;margin-top:2px;}
-  .page .inv-meta{text-align:right;font-size:10px;}
-  .page .inv-title{font-size:18px;font-weight:700;color:#333;text-align:right;}
-  .page .inv-section{margin:12px 0;}
-  .page .inv-twocol{display:flex;gap:24px;margin:12px 0;}
-  .page .inv-col{flex:1;}
-  .page .inv-col-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#555;margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:3px;}
-  .page .inv-col-body{font-size:10.5px;line-height:1.6;color:#222;}
-  .page table.inv-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:9.5px;}
-  .page table.inv-table th{background:#f4f4f4;font-weight:600;text-align:left;padding:5px 6px;border:1px solid #ddd;}
-  .page table.inv-table td{padding:5px 6px;border:1px solid #ddd;vertical-align:top;}
-  .page table.inv-table tr:nth-child(even) td{background:#fafafa;}
-  .page .inv-totals{margin-left:auto;width:260px;margin-top:8px;}
-  .page .inv-totals td{padding:3px 6px;font-size:10px;}
-  .page .inv-totals .total-row td{font-weight:700;border-top:1.5px solid #333;font-size:11px;}
-  .page .inv-footer{margin-top:20px;padding-top:12px;border-top:1px solid #ddd;display:flex;justify-content:space-between;}
-  .page .inv-footer-left{font-size:9.5px;color:#555;line-height:1.6;}
-  .page .inv-sign{text-align:right;font-size:9.5px;color:#555;}
-  .page .inv-sign .sig-box{width:120px;height:40px;border-bottom:1px solid #333;margin-left:auto;margin-bottom:4px;}
-  .tab-row{display:flex;gap:0;margin-bottom:18px;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
-  .tab{flex:1;padding:10px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;transition:.15s;background:transparent;}
-  .tab:hover{background:var(--panel2);}
-  .tab.active{background:var(--panel2);color:var(--text);font-weight:600;}
-  .col-mapper{background:var(--panel2);border-radius:10px;padding:14px;margin-top:12px;}
-  .cm-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);}
-  .cm-row:last-child{border:none;}
-  .cm-key{font-size:12px;font-weight:600;width:160px;flex-shrink:0;color:var(--text);}
-  .cm-arrow{color:var(--muted);font-size:14px;flex-shrink:0;}
-  .cm-val{flex:1;}
-  .cm-val select{width:100%;}
-  .cm-sample{font-size:11px;color:var(--muted);width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;}
-  .scan-status{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0a1533;border:1px solid #1a3060;border-radius:8px;font-size:12px;color:var(--accent);margin:8px 0;}
+:root {
+  --bg: #0c0e14;
+  --surface: #13161f;
+  --surface2: #1a1e2a;
+  --border: #252b3b;
+  --border2: #2e3650;
+  --text: #e8eaf0;
+  --muted: #7c879e;
+  --dim: #4a5268;
+  --accent: #4f7fff;
+  --accent-glow: rgba(79,127,255,0.15);
+  --green: #3ecf8e;
+  --green-bg: #0d2b1e;
+  --amber: #f5a623;
+  --amber-bg: #2b1e08;
+  --red: #e05c5c;
+  --red-bg: #2b0d0d;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ── SAVED INVOICES (Step 0) ── */
-  .inv-library{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:16px;}
-  .inv-card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:16px;position:relative;transition:.15s;}
-  .inv-card:hover{border-color:#3a4255;}
-  .inv-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-  .inv-card-id{font-weight:700;font-size:13px;color:var(--text);}
-  .inv-card-date{font-size:11px;color:var(--muted);}
-  .inv-card-customer{font-size:12px;color:var(--muted);margin-bottom:6px;}
-  .inv-card-total{font-size:16px;font-weight:700;color:var(--accent2);margin-bottom:10px;}
-  .inv-card-source{font-size:11px;color:#5b6170;margin-bottom:10px;}
-  .inv-card-actions{display:flex;gap:6px;flex-wrap:wrap;}
-  .search-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px;}
-  .search-bar input{flex:1;padding:8px 12px;font-size:13px;}
-  .stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
-  .stat-box{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px 16px;flex:1;min-width:120px;}
-  .stat-box .sv{font-size:20px;font-weight:700;color:var(--text);}
-  .stat-box .sl{font-size:11px;color:var(--muted);margin-top:2px;}
-  .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
-  .empty-state .es-icon{font-size:44px;margin-bottom:14px;opacity:.5;}
-  .empty-state h3{font-size:16px;margin-bottom:6px;color:var(--text);}
+body { background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  /* Multi-file upload queue */
-  .file-queue{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
-  .fq-item{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .fq-name{font-size:12.5px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .fq-meta{font-size:11px;color:var(--muted);flex-shrink:0;}
-  .fq-status{font-size:11px;flex-shrink:0;}
-  .fq-status.ok{color:var(--good);}
-  .fq-status.err{color:var(--bad);}
+/* ── LAYOUT ── */
+.shell { display: flex; min-height: 100vh; }
 
-  /* Notification toast */
-  #toast{position:fixed;bottom:24px;right:24px;background:#1d212a;border:1px solid var(--line);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);z-index:9999;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;max-width:340px;}
-  #toast.show{opacity:1;transform:translateY(0);}
-  #toast.good{border-color:var(--good);color:var(--good);}
-  #toast.bad{border-color:var(--bad);color:var(--bad);}
+.sidebar {
+  width: 240px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 24px 16px;
+}
 
-  /* Confirm modal */
-  .modal-bg{position:fixed;inset:0;background:#000a;z-index:9990;display:flex;align-items:center;justify-content:center;}
-  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;width:360px;max-width:90vw;}
-  .modal h3{margin-bottom:10px;}
-  .modal p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
-  .modal .row{justify-content:flex-end;}
+.logo { margin-bottom: 32px; }
+.logo-mark {
+  font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+  color: var(--text);
+}
+.logo-mark span { color: var(--accent); }
+.logo-sub { font-size: 11px; color: var(--dim); margin-top: 3px; letter-spacing: 0.3px; text-transform: uppercase; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 13px; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+  margin-bottom: 2px; position: relative;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--accent-glow); color: var(--accent); }
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 2px; background: var(--accent); border-radius: 2px;
+}
+.nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; background: var(--accent); color: white;
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+}
+.nav-sep { height: 1px; background: var(--border); margin: 12px 0; }
+.sidebar-foot {
+  margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--dim); line-height: 1.7;
+}
+
+.main { flex: 1; overflow-y: auto; padding: 32px 40px; }
+
+/* ── COMMON ── */
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px;
+  margin-bottom: 18px;
+}
+.card-title {
+  font-size: 13px; font-weight: 600; margin-bottom: 16px;
+  color: var(--text); display: flex; align-items: center; gap: 8px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: none; transition: all .15s; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #3d6be6; }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger { background: var(--red-bg); border: 1px solid var(--red); color: var(--red); }
+.btn-danger:hover { opacity: .8; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-xs { padding: 3px 9px; font-size: 11px; }
+.btn-green { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); }
+.btn-green:hover { opacity: .85; }
+
+input[type=text], input[type=email], input[type=number], textarea, select {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 7px; padding: 8px 11px;
+  font-size: 12.5px; font-family: inherit; outline: none; transition: border .15s;
+  width: 100%;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+.field { margin-bottom: 12px; }
+.field label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; letter-spacing: 0.2px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+/* ── UPLOAD ZONE ── */
+.drop-zone {
+  border: 1.5px dashed var(--border2); border-radius: 10px;
+  padding: 40px 24px; text-align: center; cursor: pointer;
+  transition: all .2s; position: relative;
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--accent); background: var(--accent-glow);
+}
+.drop-zone input { display: none; }
+.drop-icon { font-size: 36px; margin-bottom: 10px; }
+.drop-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.drop-sub { font-size: 12px; color: var(--muted); }
+
+/* ── STAT BOXES ── */
+.stats-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.stat-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.stat.accent .stat-val { color: var(--accent); }
+.stat.green .stat-val { color: var(--green); }
+.stat.amber .stat-val { color: var(--amber); }
+
+/* ── TABLE ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.data-table th {
+  background: var(--surface2); color: var(--muted); font-size: 11px;
+  font-weight: 600; text-align: left; padding: 9px 10px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--surface2); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid #1a4f35; }
+.badge-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid #4a3010; }
+.badge-blue { background: var(--accent-glow); color: var(--accent); border: 1px solid #1f3a80; }
+.badge-dim { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+/* ── NOTE ── */
+.note {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 11px 14px;
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+}
+.note b { color: var(--text); }
+.note.info { border-color: #1f3a80; background: var(--accent-glow); color: #a0b4ff; }
+.note.success { border-color: #1a4f35; background: var(--green-bg); color: #7de8b6; }
+.note.warn { border-color: #4a3010; background: var(--amber-bg); color: #f5c872; }
+
+/* ── PROGRESS ── */
+.progress-wrap { background: var(--surface2); border-radius: 4px; overflow: hidden; height: 6px; margin: 10px 0; }
+.progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .2s; border-radius: 4px; }
+
+/* ── PROFILE CARD ── */
+.profile-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; position: relative;
+}
+.profile-card-name { font-weight: 700; font-size: 13px; }
+.profile-card-detail { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.profile-card-del { position: absolute; top: 10px; right: 10px; }
+.profiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 10px; margin-top: 12px; }
+
+/* ── MERCHANT TABLE ROWS ── */
+.merchant-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+
+/* ── INVOICE PREVIEW (print-style white) ── */
+.inv-paper {
+  background: #fff; color: #111; border-radius: 8px;
+  padding: 32px 36px; max-width: 760px; margin: 0 auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  font-family: 'Arial', sans-serif; font-size: 10.5px; line-height: 1.4;
+}
+.inv-paper .inv-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.inv-paper .inv-title-block h2 { font-size: 17px; font-weight: 900; color: #111; margin-bottom: 1px; }
+.inv-paper .inv-title-block p { font-size: 10px; color: #555; }
+.inv-paper .inv-logo { font-size: 22px; font-weight: 900; color: #111; letter-spacing: -0.5px; }
+.inv-paper .inv-meta { text-align: right; font-size: 10px; color: #333; margin-bottom: 16px; }
+.inv-paper .inv-meta div { margin-bottom: 2px; }
+.inv-paper hr.inv-rule { border: none; border-top: 1.5px solid #222; margin: 10px 0; }
+.inv-paper hr.inv-rule-light { border: none; border-top: 1px solid #ddd; margin: 10px 0; }
+.inv-paper .inv-addr-row { display: flex; gap: 32px; margin: 14px 0; }
+.inv-paper .inv-addr-col { flex: 1; }
+.inv-paper .inv-addr-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #777; margin-bottom: 5px; }
+.inv-paper .inv-addr-body { font-size: 10.5px; color: #222; line-height: 1.55; }
+.inv-paper .inv-addr-body b { font-size: 11.5px; }
+table.inv-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
+table.inv-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 9.5px; }
+table.inv-table td { border: 1px solid #ddd; padding: 7px 8px; vertical-align: top; }
+table.inv-table tr:nth-child(even) td { background: #fafafa; }
+.inv-totals { margin-left: auto; width: 240px; border-collapse: collapse; margin-top: 6px; }
+.inv-totals td { padding: 4px 8px; font-size: 10px; border: none; }
+.inv-totals .total-final td { font-weight: 800; font-size: 12px; border-top: 2px solid #111; padding-top: 6px; }
+.inv-words { font-size: 10.5px; background: #f9f9f9; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; margin: 8px 0; }
+.inv-from { font-size: 10.5px; background: #f9f9f9; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; margin: 6px 0 12px; font-weight: 600; }
+.inv-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #ddd; }
+.inv-sold-by { font-size: 9.5px; color: #333; line-height: 1.7; }
+.inv-sold-by .co-name { font-size: 11px; font-weight: 700; color: #111; margin-bottom: 3px; }
+.inv-sign { text-align: right; font-size: 9.5px; color: #555; }
+.inv-sign .sig-line { width: 130px; border-bottom: 1.5px solid #333; height: 36px; margin-left: auto; margin-bottom: 5px; }
+.inv-sign .sig-name { font-weight: 700; font-size: 11px; color: #111; }
+
+/* ── RESULTS ── */
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px; margin-top: 16px; }
+.result-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; transition: border-color .15s;
+}
+.result-card:hover { border-color: var(--border2); }
+.rc-id { font-weight: 700; font-size: 13px; }
+.rc-merchant { font-size: 12px; color: var(--muted); margin: 3px 0 8px; }
+.rc-amount { font-size: 18px; font-weight: 800; color: var(--green); margin-bottom: 10px; }
+.rc-utr { font-size: 11px; color: var(--dim); margin-bottom: 10px; font-family: monospace; }
+.rc-actions { display: flex; gap: 6px; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 18px; font-size: 13px;
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: all .25s; max-width: 340px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.good { border-color: var(--green); color: var(--green); }
+#toast.bad { border-color: var(--red); color: var(--red); }
+
+/* ── MODAL ── */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9990; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 500px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal h3 { font-size: 16px; margin-bottom: 6px; }
+.modal .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+.empty h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
+.empty p { font-size: 13px; }
+
+/* ── PRINT HIDE ── */
+@media print { .sidebar, .main > *:not(#printTarget) { display: none; } #printTarget { display: block !important; } }
 </style>
 </head>
 <body>
 <div id="toast"></div>
-<div class="app">
-  <div class="side">
-    <div class="brand">Doc<span>Merge</span></div>
-    <div class="brand-sub">Smart Invoice Generator</div>
-    <div class="step" data-step="0"><div class="dot">📁</div>Saved Invoices</div>
-    <div class="side-sep"></div>
-    <div class="step" data-step="1"><div class="dot">1</div>Company Profiles</div>
-    <div class="step" data-step="2"><div class="dot">2</div>Upload CSV / XLSX</div>
-    <div class="step" data-step="3"><div class="dot">3</div>Map Fields</div>
-    <div class="step" data-step="4"><div class="dot">4</div>Preview &amp; Generate</div>
-    <div class="side-foot">
-      Runs 100% in your browser.<br>Files saved locally on device.
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">Fidy<span>Invoice</span></div>
+      <div class="logo-sub">Settlement Generator</div>
     </div>
-  </div>
-  <div class="main" id="main"></div>
+
+    <div class="nav-item active" data-page="invoices">
+      <span class="nav-icon">🧾</span> Generate Invoices
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-page="profiles">
+      <span class="nav-icon">🏢</span> Merchant Profiles
+      <span class="nav-badge" id="profileCount">0</span>
+    </div>
+    <div class="nav-item" data-page="library">
+      <span class="nav-icon">📁</span> Saved Invoices
+      <span class="nav-badge" id="libCount">0</span>
+    </div>
+    <div class="nav-item" data-page="settings">
+      <span class="nav-icon">⚙️</span> Your Company
+    </div>
+
+    <div class="sidebar-foot">
+      Runs entirely in your browser.<br>
+      Data saved on this device.
+    </div>
+  </aside>
+
+  <main class="main" id="mainArea"></main>
 </div>
+
+<!-- Hidden print target -->
+<div id="printTarget" style="display:none;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
-/* ============================================================
-   IndexedDB PERSISTENCE LAYER
-   ============================================================ */
-const DB_NAME = 'docmerge_db';
-const DB_VERSION = 3;
-const STORE_INVOICES = 'invoices';
-const STORE_PROFILES = 'profiles';
+/* ═══════════════════════════════════════════════
+   INDEXEDDB
+═══════════════════════════════════════════════ */
+const DB = { name: 'fidyinv', version: 1, db: null };
 
-let db = null;
-
-function openDB(){
-  return new Promise((resolve, reject)=>{
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+async function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB.name, DB.version);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      const oldV = e.oldVersion;
-      // v3: migrated from ArrayBuffer to base64 — drop old store to clear stale data
-      if(oldV < 3 && d.objectStoreNames.contains(STORE_INVOICES)){
-        d.deleteObjectStore(STORE_INVOICES);
+      if (!d.objectStoreNames.contains('invoices')) {
+        const s = d.createObjectStore('invoices', { keyPath: 'id' });
+        s.createIndex('merchant', 'merchant');
+        s.createIndex('savedAt', 'savedAt');
       }
-      if(!d.objectStoreNames.contains(STORE_INVOICES)){
-        const s = d.createObjectStore(STORE_INVOICES, {keyPath:'id'});
-        s.createIndex('savedAt','savedAt'); s.createIndex('customer','customer'); s.createIndex('sourceFile','sourceFile');
-      }
-      if(!d.objectStoreNames.contains(STORE_PROFILES)){
-        d.createObjectStore(STORE_PROFILES, {keyPath:'id'});
-      }
+      if (!d.objectStoreNames.contains('profiles')) d.createObjectStore('profiles', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath: 'key' });
     };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror = () => reject(req.error);
+    req.onsuccess = e => { DB.db = e.target.result; res(DB.db); };
+    req.onerror = () => rej(req.error);
   });
 }
-function dbTx(store, mode='readonly'){
-  return db.transaction(store, mode).objectStore(store);
-}
-function dbGetAll(store){
-  return new Promise((res,rej)=>{ const r=dbTx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
-}
-function dbPut(store, obj){
-  return new Promise((res,rej)=>{ const r=dbTx(store,'readwrite').put(obj); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
-}
-function dbDelete(store, key){
-  return new Promise((res,rej)=>{ const r=dbTx(store,'readwrite').delete(key); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
-}
-function dbClearStore(store){
-  return new Promise((res,rej)=>{ const r=dbTx(store,'readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const tx = (store, mode='readonly') => DB.db.transaction(store, mode).objectStore(store);
+const dbGetAll = s => new Promise((res,rej) => { const r = tx(s).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const dbPut = (s,o) => new Promise((res,rej) => { const r = tx(s,'readwrite').put(o); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const dbDel = (s,k) => new Promise((res,rej) => { const r = tx(s,'readwrite').delete(k); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const dbGet = (s,k) => new Promise((res,rej) => { const r = tx(s).get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const dbClear = s => new Promise((res,rej) => { const r = tx(s,'readwrite').clear(); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+
+const b64 = blob => new Promise((res,rej)=>{ if(!blob) return res(null); const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsDataURL(blob); });
+function b64ToBlob(d, mime) {
+  if(!d) return null;
+  const bin = atob(d.split(',')[1]);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
 }
 
-// Convert Blob → base64 string (safe for IndexedDB across all browsers)
-async function blobToBase64(blob){
-  if(!blob) return null;
-  return new Promise((res,rej)=>{
-    const reader = new FileReader();
-    reader.onload = () => res(reader.result); // "data:...;base64,XXXX"
-    reader.onerror = () => rej(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-function base64ToBlob(dataUrl, mime){
-  if(!dataUrl) return null;
-  const base64 = dataUrl.split(',')[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-  return new Blob([bytes],{type:mime});
-}
-
-// Save invoice to IndexedDB as base64 strings (works reliably on Netlify/all browsers)
-async function saveInvoiceToDB(inv){
-  const pdfB64  = await blobToBase64(inv.pdfBlob);
-  const docxB64 = await blobToBase64(inv.docxBlob);
-  const record = {
-    id: String(inv.id),
-    customer: inv.customer,
-    total: inv.total,
-    pdfName: inv.pdfName,
-    docxName: inv.docxName,
-    sourceFile: inv.sourceFile || 'unknown',
-    savedAt: Date.now(),
-    pdfB64,
-    docxB64
-  };
-  await dbPut(STORE_INVOICES, record);
-}
-
-async function loadInvoicesFromDB(){
-  const recs = await dbGetAll(STORE_INVOICES);
-  return recs.map(r=>({
-    ...r,
-    pdfBlob:  r.pdfB64  ? base64ToBlob(r.pdfB64,  'application/pdf') : (r.pdfData  ? new Blob([r.pdfData],{type:'application/pdf'}) : null),
-    docxBlob: r.docxB64 ? base64ToBlob(r.docxB64, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') : (r.docxData ? new Blob([r.docxData],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}) : null)
-  }));
-}
-
-/* ============================================================
-   GLOBAL STATE
-   ============================================================ */
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
 const S = {
-  step: 0,
-  profiles: [],
-  ownProfile: null,
-  dataset: { headers:[], rows:[], uniqueCol:'', sourceFile:'' },
-  fileQueue: [],        // [{name, headers, rows, uniqueCol, status}]
-  mapping: {},
-  statics: {},
-  generated: [],
-  savedInvoices: [],    // loaded from IndexedDB
-  _matchCol: ''
+  page: 'invoices',
+  rows: [],           // parsed from excel
+  profiles: [],       // merchant profiles
+  company: null,      // "your company" (seller)
+  savedInvoices: [],  // from IndexedDB
+  generated: [],      // this session
 };
 
-const INVOICE_FIELDS = [
-  {key:'inv_number',   label:'Invoice Number',    required:true},
-  {key:'inv_date',     label:'Invoice Date',       required:true},
-  {key:'order_date',   label:'Order Date',         required:false},
-  {key:'bill_name',    label:'Customer Name',      required:true},
-  {key:'bill_address', label:'Billing Address',    required:false},
-  {key:'bill_city',    label:'Billing City',       required:false},
-  {key:'bill_state',   label:'Billing State',      required:false},
-  {key:'bill_pin',     label:'Billing PIN / ZIP',  required:false},
-  {key:'ship_name',    label:'Shipping Name',      required:false},
-  {key:'ship_address', label:'Shipping Address',   required:false},
-  {key:'item_desc',    label:'Item / Description', required:true},
-  {key:'unit_price',   label:'Unit Price',         required:false},
-  {key:'qty',          label:'Quantity',           required:false},
-  {key:'net_amount',   label:'Net Amount',         required:false},
-  {key:'tax_rate',     label:'Tax Rate',           required:false},
-  {key:'tax_type',     label:'Tax Type (GST/IGST)',required:false},
-  {key:'tax_amount',   label:'Tax Amount',         required:false},
-  {key:'total',        label:'Total Amount',       required:true},
-  {key:'amount_words', label:'Amount in Words',    required:false},
-  {key:'notes',        label:'Notes / Remarks',    required:false},
-];
+/* ═══════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════ */
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const uid = () => Math.random().toString(36).slice(2,9);
+const fmt = ts => new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+const fmtINR = n => '₹'+Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
-function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function uid(){ return Math.random().toString(36).slice(2,9); }
-function getVal(row,col){ if(!col||!row) return ''; if(row[col]!==undefined) return String(row[col]??''); const k=Object.keys(row).find(k=>k.trim().toLowerCase()===String(col).trim().toLowerCase()); return k?String(row[k]??''):''; }
-function resolveField(key,row){ const col=S.mapping[key]; if(col&&row) return getVal(row,col); return S.statics[key]||''; }
-function autoMatch(fieldLabel,headers){ const lf=fieldLabel.toLowerCase(); return headers.find(h=>{ const lh=h.toLowerCase().trim(); return lh===lf||lh.includes(lf.split(' ')[0])||lf.includes(lh); })||''; }
-function triggerDownload(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000); }
-function fmtDate(ts){ return new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
-function fmtSize(b){ if(!b) return '—'; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(0)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
-
-let toastTimer;
-function toast(msg, type=''){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className='show '+(type||'');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>el.className='',3000);
+function triggerDL(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
-function showConfirm(msg, onYes){
-  const bg=document.createElement('div'); bg.className='modal-bg';
-  bg.innerHTML=`<div class="modal"><h3>Are you sure?</h3><p>${esc(msg)}</p><div class="row"><button class="btn secondary" id="cfNo">Cancel</button><button class="btn danger" id="cfYes">Delete</button></div></div>`;
-  document.body.appendChild(bg);
-  bg.querySelector('#cfNo').onclick=()=>bg.remove();
-  bg.querySelector('#cfYes').onclick=()=>{bg.remove();onYes();};
+let toastT;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show '+(type||'');
+  clearTimeout(toastT); toastT = setTimeout(()=>el.className='',3500);
 }
 
-/* ============================================================
+function numWords(n) {
+  n = Math.round(n);
+  const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+    'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
+    'Seventeen','Eighteen','Nineteen'];
+  const b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  if(n===0) return 'Zero';
+  function words(num) {
+    if(num<20) return a[num];
+    if(num<100) return b[Math.floor(num/10)]+(num%10?' '+a[num%10]:'');
+    if(num<1000) return a[Math.floor(num/100)]+' Hundred'+(num%100?' '+words(num%100):'');
+    if(num<100000) return words(Math.floor(num/1000))+' Thousand'+(num%1000?' '+words(num%1000):'');
+    if(num<10000000) return words(Math.floor(num/100000))+' Lakh'+(num%100000?' '+words(num%100000):'');
+    return words(Math.floor(num/10000000))+' Crore'+(num%10000000?' '+words(num%10000000):'');
+  }
+  return words(n)+' Only';
+}
+
+// Auto-generate invoice number from settlement record ID
+function genInvNum(row) {
+  return 'INV-' + String(row['Seller Settlement Records ID'] || uid()).slice(-8);
+}
+
+// Format date nicely
+function parseDate(raw) {
+  if(!raw) return '';
+  if(raw instanceof Date) return raw.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
+  // "20/6/2026, 1:43 PM"
+  const s = String(raw);
+  const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
+  if(m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}/${m[3]}`;
+  return s;
+}
+
+/* ═══════════════════════════════════════════════
    ROUTER
-   ============================================================ */
-function goto(step){
-  S.step=step;
-  document.querySelectorAll('.step').forEach(el=>{
-    const s=+(el.dataset.step);
-    el.classList.toggle('active',s===step);
-    el.classList.toggle('done',s>0&&s<step);
+═══════════════════════════════════════════════ */
+function goto(page) {
+  S.page = page;
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
   });
   render();
 }
-document.querySelectorAll('.step').forEach(el=>{
-  el.addEventListener('click',()=>{
-    const s=+(el.dataset.step);
-    if(s===0){ goto(0); return; }
-    if(s>1&&S.profiles.length===0) return;
-    if(s>2&&S.dataset.headers.length===0&&S.fileQueue.length===0) return;
-    if(s>3&&S.dataset.headers.length===0) return;
-    goto(s);
-  });
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => goto(el.dataset.page));
 });
 
-function render(){
-  const m=document.getElementById('main');
-  if(S.step===0){ m.innerHTML=viewStep0(); wireStep0(); }
-  if(S.step===1){ m.innerHTML=viewStep1(); wireStep1(); }
-  if(S.step===2){ m.innerHTML=viewStep2(); wireStep2(); }
-  if(S.step===3){ m.innerHTML=viewStep3(); wireStep3(); }
-  if(S.step===4){ m.innerHTML=viewStep4(); wireStep4(); }
+function render() {
+  const m = document.getElementById('mainArea');
+  if(S.page==='invoices') { m.innerHTML = viewInvoices(); wireInvoices(); }
+  if(S.page==='profiles') { m.innerHTML = viewProfiles(); wireProfiles(); }
+  if(S.page==='library')  { m.innerHTML = viewLibrary();  wireLibrary(); }
+  if(S.page==='settings') { m.innerHTML = viewSettings(); wireSettings(); }
+  updateBadges();
 }
 
-/* ============================================================
-   STEP 0 — SAVED INVOICES LIBRARY
-   ============================================================ */
-let libSearch=''; let libSort='newest';
+function updateBadges() {
+  document.getElementById('profileCount').textContent = S.profiles.length;
+  document.getElementById('libCount').textContent = S.savedInvoices.length;
+}
 
-function viewStep0(){
-  const all=S.savedInvoices;
-  const q=libSearch.toLowerCase().trim();
-  let filtered=all.filter(i=>!q||(i.id+'').toLowerCase().includes(q)||i.customer.toLowerCase().includes(q)||i.sourceFile.toLowerCase().includes(q));
-  if(libSort==='newest') filtered.sort((a,b)=>b.savedAt-a.savedAt);
-  if(libSort==='oldest') filtered.sort((a,b)=>a.savedAt-b.savedAt);
-  if(libSort==='customer') filtered.sort((a,b)=>a.customer.localeCompare(b.customer));
+/* ═══════════════════════════════════════════════
+   PAGE: GENERATE INVOICES
+═══════════════════════════════════════════════ */
+function viewInvoices() {
+  const rows = S.rows;
+  const gen = S.generated;
 
-  const totalAmt=all.reduce((s,i)=>s+parseFloat(String(i.total).replace(/[^0-9.]/g,'')||0),0);
-  const sources=[...new Set(all.map(i=>i.sourceFile))].filter(Boolean);
+  // Stats
+  const totalAmt = rows.reduce((s,r)=>s+Number(r['Transaction Amount']||0),0);
+  const sellers = [...new Set(rows.map(r=>r['Seller Name']))].filter(Boolean);
 
   return `
-    <h1>Saved Invoices</h1>
-    <p class="sub">All generated invoices are stored in your browser's local storage. Re-download any time — even after closing the tab.</p>
+  <div style="margin-bottom:24px;">
+    <h1>Generate Settlement Invoices</h1>
+    <p class="page-sub">Upload your Fidypay settlement Excel — one invoice is created per transaction row, automatically.</p>
+  </div>
 
-    <div class="stats-row">
-      <div class="stat-box"><div class="sv">${all.length}</div><div class="sl">Total Invoices Saved</div></div>
-      <div class="stat-box"><div class="sv">${sources.length}</div><div class="sl">Source Files</div></div>
-      <div class="stat-box"><div class="sv">${[...new Set(all.map(i=>i.customer))].filter(Boolean).length}</div><div class="sl">Unique Customers</div></div>
-      <div class="stat-box"><div class="sv">${totalAmt>0?'₹'+totalAmt.toLocaleString('en-IN',{maximumFractionDigits:0}):'—'}</div><div class="sl">Total Value (approx)</div></div>
+  ${!S.company ? `
+  <div class="note warn" style="margin-bottom:18px;">
+    ⚠️ <b>Your company details are not set.</b> 
+    <span style="cursor:pointer;text-decoration:underline;color:var(--amber);" onclick="goto('settings')">Set up your company →</span>
+    (needed for the "Sold By" section on each invoice)
+  </div>` : ''}
+
+  <div class="card">
+    <div class="card-title">📂 Upload Settlement Excel</div>
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">📊</div>
+      <div class="drop-label">Drop your .xlsx or .csv file here</div>
+      <div class="drop-sub">Fidypay settlement export format • Multiple rows = Multiple invoices</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
     </div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-        <div class="search-bar" style="margin:0;flex:1;min-width:200px;">
-          <input type="search" placeholder="Search by invoice ID, customer, file…" value="${esc(libSearch)}" id="libSearch" style="flex:1;">
-          <select id="libSort" style="flex-shrink:0;">
-            <option value="newest" ${libSort==='newest'?'selected':''}>Newest first</option>
-            <option value="oldest" ${libSort==='oldest'?'selected':''}>Oldest first</option>
-            <option value="customer" ${libSort==='customer'?'selected':''}>Customer A–Z</option>
-          </select>
-        </div>
-        <div class="row" style="gap:8px;flex-shrink:0;">
-          ${filtered.length>0?`<button class="btn secondary sm" id="zipSelectedBtn">⬇ Download all as ZIP</button>`:''}
-          ${all.length>0?`<button class="btn danger sm" id="clearAllBtn">🗑 Clear all</button>`:''}
-          <button class="btn sm" onclick="goto(1)">+ New invoices</button>
-        </div>
+    ${rows.length ? `
+    <div class="row" style="margin-top:14px;justify-content:space-between;">
+      <div class="row" style="gap:8px;">
+        <span class="badge badge-green">✓ ${rows.length} rows loaded</span>
+        <span class="badge badge-blue">${sellers.length} unique merchants</span>
+        <span class="badge badge-dim">Total: ${fmtINR(totalAmt)}</span>
       </div>
+      <button class="btn btn-ghost btn-sm" id="clearDataBtn">Clear data</button>
+    </div>` : ''}
+  </div>
 
-      ${filtered.length===0 ? `
-        <div class="empty-state">
-          <div class="es-icon">🗂️</div>
-          <h3>${all.length===0?'No saved invoices yet':'No results found'}</h3>
-          <p style="font-size:13px;margin-top:6px;">${all.length===0?'Generate your first batch — results are saved here automatically.':'Try a different search term.'}</p>
-          ${all.length===0?`<button class="btn" style="margin-top:18px;" onclick="goto(1)">Get started →</button>`:''}
-        </div>
-      ` : `
-        <div class="inv-library">
-          ${filtered.map(inv=>invCard(inv)).join('')}
-        </div>
-      `}
+  ${rows.length ? `
+  <div class="card">
+    <div class="row-between" style="margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">📋 Transaction Preview (${rows.length} rows)</div>
+      <button class="btn btn-primary" id="genAllBtn">
+        ⚡ Generate all ${rows.length} invoices
+      </button>
     </div>
+    <div class="tbl-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Seller Name</th>
+            <th>Settlement Record ID</th>
+            <th>UTR Number</th>
+            <th>Transaction Date</th>
+            <th>Amount</th>
+            <th>Type</th>
+            <th>Preview</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r,i) => {
+            const hasProfile = S.profiles.find(p => matchProfile(p, r['Seller Name']));
+            return `<tr>
+              <td style="color:var(--dim);font-size:11px;">${i+1}</td>
+              <td>
+                <div style="font-weight:600;font-size:12.5px;">${esc(r['Seller Name']||'—')}</div>
+                <div style="font-size:11px;color:var(--dim);">ID: ${esc(r['Seller ID']||'')}</div>
+              </td>
+              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Seller Settlement Records ID']||'')}</td>
+              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Transaction UTR Number']||'')}</td>
+              <td style="font-size:12px;">${esc(parseDate(r['Transaction Date']))}</td>
+              <td style="font-weight:700;color:var(--green);">${fmtINR(r['Transaction Amount']||0)}</td>
+              <td><span class="badge badge-blue" style="font-size:10px;">${esc(r['Transaction Type']||'')}</span></td>
+              <td>
+                <button class="btn btn-ghost btn-xs" data-preview="${i}">👁 View</button>
+                ${hasProfile ? '<span class="badge badge-green" style="font-size:10px;margin-left:4px;">Profile ✓</span>' : '<span class="badge badge-amber" style="font-size:10px;margin-left:4px;">No profile</span>'}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="progress-wrap" id="genProgress" style="display:none;">
+      <div class="progress-bar" id="genBar"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;" id="genText"></div>
+  </div>
+  ` : `
+  <div class="empty">
+    <div class="empty-icon">📊</div>
+    <h3>No data loaded</h3>
+    <p>Upload your Fidypay settlement Excel above to get started.</p>
+  </div>
+  `}
+
+  ${gen.length ? `
+  <div class="card">
+    <div class="row-between" style="margin-bottom:16px;">
+      <div>
+        <div class="card-title" style="margin:0;">✅ ${gen.length} invoices generated</div>
+        <div style="font-size:12px;color:var(--green);margin-top:3px;">Saved to your library automatically</div>
+      </div>
+      <div class="row" style="gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="viewLibBtn">View library →</button>
+        <button class="btn btn-green btn-sm" id="zipAllBtn">⬇ Download all as ZIP</button>
+      </div>
+    </div>
+    <div class="results-grid">
+      ${gen.map(g => `
+      <div class="result-card">
+        <div class="rc-id">${esc(g.invNum)}</div>
+        <div class="rc-merchant">${esc(g.merchant)}</div>
+        <div class="rc-amount">${fmtINR(g.amount)}</div>
+        <div class="rc-utr">UTR: ${esc(g.utr)}</div>
+        <div class="rc-actions">
+          <button class="btn btn-ghost btn-xs" data-dl-pdf="${esc(g.id)}">⬇ PDF</button>
+          <button class="btn btn-ghost btn-xs" data-dl-docx="${esc(g.id)}">⬇ DOCX</button>
+          <button class="btn btn-ghost btn-xs" data-preview-gen="${esc(g.id)}">👁</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
   `;
 }
 
-function invCard(inv){
-  return `<div class="inv-card">
-    <div class="inv-card-top">
-      <div>
-        <div class="inv-card-id">${esc(inv.id)}</div>
-        <div class="inv-card-date">${fmtDate(inv.savedAt)}</div>
+function wireInvoices() {
+  const drop = document.getElementById('dropZone');
+  const inp = document.getElementById('fileInput');
+  if(drop) {
+    drop.addEventListener('click', () => inp.click());
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => { if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+    inp.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+  }
+
+  document.getElementById('clearDataBtn')?.addEventListener('click', () => { S.rows=[]; S.generated=[]; render(); });
+  document.getElementById('genAllBtn')?.addEventListener('click', generateAll);
+  document.getElementById('zipAllBtn')?.addEventListener('click', downloadZip);
+  document.getElementById('viewLibBtn')?.addEventListener('click', () => goto('library'));
+
+  document.querySelectorAll('[data-preview]').forEach(btn => {
+    btn.addEventListener('click', () => showPreviewModal(S.rows[+btn.dataset.preview]));
+  });
+
+  document.querySelectorAll('[data-dl-pdf]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = S.generated.find(x=>x.id===btn.dataset.dlPdf);
+      if(g && g.pdfBlob) triggerDL(g.pdfBlob, g.invNum+'.pdf');
+    });
+  });
+  document.querySelectorAll('[data-dl-docx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = S.generated.find(x=>x.id===btn.dataset.dlDocx);
+      if(g && g.docxBlob) triggerDL(g.docxBlob, g.invNum+'.docx');
+    });
+  });
+  document.querySelectorAll('[data-preview-gen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = S.generated.find(x=>x.id===btn.dataset.previewGen);
+      if(g) showPreviewModal(g._row);
+    });
+  });
+}
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type:'array', cellDates:true, raw:false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false });
+      if(!json.length) throw new Error('No rows found in file');
+      S.rows = json;
+      S.generated = [];
+      toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
+      render();
+    } catch(err) {
+      toast('Error reading file: '+err.message, 'bad');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ═══════════════════════════════════════════════
+   GENERATE
+═══════════════════════════════════════════════ */
+async function generateAll() {
+  S.generated = [];
+  const btn = document.getElementById('genAllBtn');
+  const prog = document.getElementById('genProgress');
+  const bar = document.getElementById('genBar');
+  const txt = document.getElementById('genText');
+  if(btn) btn.disabled = true;
+  if(prog) prog.style.display = 'block';
+
+  for(let i=0; i<S.rows.length; i++) {
+    const row = S.rows[i];
+    const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
+    const invNum = genInvNum(row);
+    const amount = Number(row['Transaction Amount']||0);
+
+    const pdfBlob = buildPDF(row, profile, invNum);
+    const docxBlob = await buildDOCX(row, profile, invNum);
+
+    const g = {
+      id: uid(),
+      invNum,
+      merchant: row['Seller Name']||'Unknown',
+      amount,
+      utr: row['Transaction UTR Number']||'',
+      settlementId: row['Seller Settlement Records ID']||'',
+      savedAt: Date.now(),
+      pdfBlob,
+      docxBlob,
+      _row: row,
+    };
+    S.generated.push(g);
+
+    // Save to IndexedDB
+    try {
+      const pdfB64 = await b64(pdfBlob);
+      const docxB64 = await b64(docxBlob);
+      await dbPut('invoices', { ...g, pdfB64, docxB64, pdfBlob:undefined, docxBlob:undefined, _row:undefined });
+    } catch(e) { console.warn('DB save failed:', e); }
+
+    const pct = Math.round(((i+1)/S.rows.length)*100);
+    if(bar) bar.style.width = pct+'%';
+    if(txt) txt.textContent = `Generating ${i+1} of ${S.rows.length}…`;
+    if(i%3===0) await new Promise(r=>setTimeout(r,0));
+  }
+
+  S.savedInvoices = await loadInvoices();
+  if(btn) btn.disabled = false;
+  toast(`✅ ${S.rows.length} invoices generated and saved!`, 'good');
+  render();
+}
+
+async function downloadZip() {
+  const z = new JSZip();
+  S.generated.forEach(g => {
+    if(g.pdfBlob)  z.file(g.invNum+'.pdf',  g.pdfBlob);
+    if(g.docxBlob) z.file(g.invNum+'.docx', g.docxBlob);
+  });
+  const blob = await z.generateAsync({type:'blob'});
+  triggerDL(blob, `settlement_invoices_${Date.now()}.zip`);
+}
+
+/* ═══════════════════════════════════════════════
+   INVOICE HTML (for preview + PDF render)
+═══════════════════════════════════════════════ */
+function buildInvoiceHTML(row, profile, invNum) {
+  const co = S.company || {};
+  const p = profile || {};
+  const amount = Number(row['Transaction Amount']||0);
+  const taxRate = co.taxRate || 18;
+  const taxType = co.taxType || 'IGST';
+  // For settlement invoices: amount is the net, calculate tax from it
+  // Amount is total collected; net = amount/(1+taxRate/100), tax = total - net
+  const netAmount = amount; // treat transaction amount as net (no tax on collections)
+  const taxAmount = 0; // settlement collections typically no GST charged to merchant
+  const total = amount;
+  const words = numWords(total);
+
+  const invDate = parseDate(new Date());
+  const txDate = parseDate(row['Transaction Date']);
+  const sellerId = row['Seller ID']||'';
+  const utr = row['Transaction UTR Number']||'';
+  const txRef = row['Transaction Reference Number']||'';
+  const txType = row['Transaction Type']||'COLLECTION';
+  const settlementRecId = row['Seller Settlement Records ID']||'';
+
+  // Bill to details
+  const merchantName = p.name || row['Seller Name']||'';
+  const merchantAddr = p.address||'';
+  const merchantCity = p.city||'';
+  const merchantState = p.state||'';
+  const merchantPin = p.pin||'';
+  const merchantGST = p.gst||'';
+  const merchantPAN = p.pan||'';
+  const merchantCIN = p.cin||'';
+  const fullBillAddr = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+
+  // Seller (your company)
+  const coName = co.name || 'YOUR COMPANY NAME';
+  const coAddr = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPAN = co.pan||'';
+  const coGST = co.gst||'';
+  const coCIN = co.cin||'';
+  const coSignatory = co.signatory||`For ${coName}`;
+  const coDesignation = co.designation||'Director';
+
+  return `<div class="inv-paper">
+    <!-- TOP HEADER -->
+    <div class="inv-top">
+      <div class="inv-title-block">
+        <h2>Tax Invoice</h2>
+        <p>(Original for Recipient)</p>
       </div>
-      <button class="btn danger xs" data-del-inv="${esc(inv.id)}">✕</button>
+      <div class="inv-logo">${esc(coName)}</div>
     </div>
-    <div class="inv-card-customer">👤 ${esc(inv.customer||'—')}</div>
-    <div class="inv-card-total">${esc(inv.total||'—')}</div>
-    <div class="inv-card-source">📄 ${esc(inv.sourceFile||'unknown')}</div>
-    <div class="inv-card-actions">
-      ${inv.pdfBlob?`<button class="btn sm accent2" data-dl-inv="${esc(inv.id)}" data-dl-type="pdf">⬇ PDF</button>`:''}
-      ${inv.docxBlob?`<button class="btn secondary sm" data-dl-inv="${esc(inv.id)}" data-dl-type="docx">⬇ DOCX</button>`:''}
+    <hr class="inv-rule">
+
+    <!-- INVOICE META -->
+    <div class="inv-meta">
+      <div><b>Invoice Number:</b> ${esc(invNum)}</div>
+      <div><b>Invoice Date:</b> ${esc(invDate)}</div>
+      <div><b>Transaction Date:</b> ${esc(txDate)}</div>
+      <div><b>Seller ID:</b> ${esc(sellerId)}</div>
+    </div>
+
+    <!-- ADDRESSES -->
+    <div class="inv-addr-row">
+      <div class="inv-addr-col">
+        <div class="inv-addr-label">Billing Address</div>
+        <div class="inv-addr-body">
+          <b>${esc(merchantName)}</b><br>
+          ${fullBillAddr ? esc(fullBillAddr)+'<br>' : ''}
+          ${merchantGST ? `GST: ${esc(merchantGST)}<br>` : ''}
+          ${merchantPAN ? `PAN: ${esc(merchantPAN)}<br>` : ''}
+        </div>
+      </div>
+      <div class="inv-addr-col">
+        <div class="inv-addr-label">Shipping Address</div>
+        <div class="inv-addr-body">
+          <b>${esc(merchantName)}</b><br>
+          ${fullBillAddr ? esc(fullBillAddr) : '—'}
+        </div>
+      </div>
+    </div>
+
+    <!-- LINE ITEMS TABLE -->
+    <table class="inv-table">
+      <thead>
+        <tr>
+          <th>SI.No</th>
+          <th>Description</th>
+          <th>UTR Number</th>
+          <th>Unit Price</th>
+          <th>QTY</th>
+          <th>Net Amount</th>
+          <th>Tax Rate</th>
+          <th>Tax Type</th>
+          <th>Tax Amount</th>
+          <th>Total Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td style="min-width:160px;">
+            Settlement ${esc(txType)} — Record ID: ${esc(String(settlementRecId))}<br>
+            <span style="color:#666;font-size:9px;">Ref: ${esc(txRef)}</span>
+          </td>
+          <td style="font-family:monospace;font-size:9px;">${esc(utr)}</td>
+          <td style="text-align:right;">${fmtINR(netAmount)}</td>
+          <td style="text-align:center;">1</td>
+          <td style="text-align:right;">${fmtINR(netAmount)}</td>
+          <td style="text-align:center;">${taxAmount>0?taxRate+'%':'—'}</td>
+          <td style="text-align:center;">${taxAmount>0?esc(taxType):'—'}</td>
+          <td style="text-align:right;">${taxAmount>0?fmtINR(taxAmount):'—'}</td>
+          <td style="text-align:right;font-weight:700;">${fmtINR(total)}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
+          <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(total)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- TOTALS -->
+    <div style="display:flex;justify-content:flex-end;">
+      <table class="inv-totals">
+        <tr><td>Net Amount</td><td style="text-align:right;">${fmtINR(netAmount)}</td></tr>
+        ${taxAmount>0?`<tr><td>${esc(taxType)} @ ${taxRate}%</td><td style="text-align:right;">${fmtINR(taxAmount)}</td></tr>`:''}
+        <tr class="total-final"><td>Total</td><td style="text-align:right;">${fmtINR(total)}</td></tr>
+      </table>
+    </div>
+
+    <!-- AMOUNT IN WORDS -->
+    <div class="inv-words"><b>Amount in Words:</b> ${esc(words)}</div>
+
+    <!-- FROM -->
+    <div class="inv-from">From ${esc(coName)}</div>
+
+    <hr class="inv-rule-light">
+
+    <!-- FOOTER -->
+    <div class="inv-footer">
+      <div class="inv-sold-by">
+        <div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>
+        <div class="co-name">${esc(coName)}</div>
+        ${coAddr ? `<div>${esc(coAddr)}</div>` : ''}
+        ${coPAN  ? `<div><b>PAN No:</b> ${esc(coPAN)}</div>` : ''}
+        ${coGST  ? `<div><b>GST Registration No:</b> ${esc(coGST)}</div>` : ''}
+        ${coCIN  ? `<div><b>CIN No:</b> ${esc(coCIN)}</div>` : ''}
+      </div>
+      <div class="inv-sign">
+        <div class="sig-line"></div>
+        <div class="sig-name">For ${esc(coName)}</div>
+        <div style="color:#888;">${esc(coSignatory)}</div>
+        <div>${esc(coDesignation)}</div>
+      </div>
     </div>
   </div>`;
 }
 
-function wireStep0(){
-  const se=document.getElementById('libSearch');
-  if(se) se.addEventListener('input',e=>{libSearch=e.target.value;render();});
-  const so=document.getElementById('libSort');
-  if(so) so.addEventListener('change',e=>{libSort=e.target.value;render();});
+/* ═══════════════════════════════════════════════
+   PREVIEW MODAL
+═══════════════════════════════════════════════ */
+function showPreviewModal(row) {
+  if(!row) return;
+  const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
+  const invNum = genInvNum(row);
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.style.cssText = 'align-items:flex-start;padding:20px;overflow-y:auto;';
+  bg.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:800px;max-width:100%;padding:20px;">
+      <div class="row-between" style="margin-bottom:16px;">
+        <div style="font-weight:700;font-size:15px;">Invoice Preview</div>
+        <div class="row" style="gap:8px;">
+          <span class="badge ${profile?'badge-green':'badge-amber'}">${profile?'✓ Profile matched':'No merchant profile'}</span>
+          <button class="btn btn-ghost btn-sm" id="closePreview">✕ Close</button>
+        </div>
+      </div>
+      ${!profile ? `<div class="note warn" style="margin-bottom:12px;">No profile found for <b>${esc(row['Seller Name'])}</b>. 
+        <span style="cursor:pointer;text-decoration:underline;color:var(--amber);" id="goAddProfile">Add profile →</span>
+        Billing address fields will be blank.</div>` : ''}
+      <div style="overflow-x:auto;">${buildInvoiceHTML(row, profile, invNum)}</div>
+    </div>`;
+  document.body.appendChild(bg);
+  document.getElementById('closePreview').onclick = () => bg.remove();
+  document.getElementById('goAddProfile')?.addEventListener('click', () => { bg.remove(); goto('profiles'); });
+  bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
+}
 
-  document.querySelectorAll('[data-dl-inv]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const inv=S.savedInvoices.find(i=>String(i.id)===btn.dataset.dlInv);
-      if(!inv) return;
-      const blob=btn.dataset.dlType==='pdf'?inv.pdfBlob:inv.docxBlob;
-      const name=btn.dataset.dlType==='pdf'?inv.pdfName:inv.docxName;
-      triggerDownload(blob,name);
+/* ═══════════════════════════════════════════════
+   BUILD PDF
+═══════════════════════════════════════════════ */
+function buildPDF(row, profile, invNum) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const L=14, R=196, W=182;
+  let y = 16;
+  const co = S.company||{};
+  const p = profile||{};
+  const amount = Number(row['Transaction Amount']||0);
+  const merchantName = p.name||row['Seller Name']||'';
+  const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
+  const coName = co.name||'YOUR COMPANY';
+  const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const words = numWords(amount);
+  const invDate = parseDate(new Date());
+  const txDate = parseDate(row['Transaction Date']);
+  const utr = row['Transaction UTR Number']||'';
+  const settlementRecId = row['Seller Settlement Records ID']||'';
+  const txRef = row['Transaction Reference Number']||'';
+  const txType = row['Transaction Type']||'COLLECTION';
+
+  // Header
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('Tax Invoice', L, y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(coName, R, y, {align:'right'});
+  y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.text('(Original for Recipient)', L, y);
+  y+=3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L, y, R, y); y+=4;
+
+  // Meta right
+  doc.setFontSize(8.5);
+  const metaLines = [
+    `Invoice Number: ${invNum}`,
+    `Invoice Date: ${invDate}`,
+    `Transaction Date: ${txDate}`,
+    `Seller ID: ${row['Seller ID']||''}`,
+  ];
+  metaLines.forEach(l => { doc.text(l, R, y, {align:'right'}); y+=4.5; });
+  y+=2;
+
+  // Addresses
+  let ly=y, ry=y;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.text('BILLING ADDRESS', L, ly); doc.text('SHIPPING ADDRESS', 110, ry);
+  ly+=5; ry+=5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(merchantName||'—', L, ly); doc.text(merchantName||'—', 110, ry);
+  ly+=4.5; ry+=4.5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  if(fullBillAddr) { const ls=doc.splitTextToSize(fullBillAddr,90); doc.text(ls,L,ly); ly+=ls.length*4; doc.text(ls,110,ry); ry+=ls.length*4; }
+  if(p.gst) { doc.text(`GST: ${p.gst}`,L,ly); ly+=4; }
+  if(p.pan) { doc.text(`PAN: ${p.pan}`,L,ly); ly+=4; }
+  y = Math.max(ly,ry)+4;
+
+  // Table
+  doc.autoTable({
+    startY: y,
+    head:[['SI.No','Description','UTR Number','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
+    body:[[
+      '1',
+      `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,
+      utr,
+      fmtINR(amount),'1',fmtINR(amount),'—','—','—',fmtINR(amount)
+    ]],
+    foot:[[ '', '', '', '', '', '', '', '', 'TOTAL:', fmtINR(amount) ]],
+    margin:{left:L, right:14},
+    styles:{fontSize:8, overflow:'linebreak', cellPadding:3},
+    headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
+    footStyles:{fillColor:[240,240,240],fontStyle:'bold'},
+    columnStyles:{
+      0:{cellWidth:8}, 1:{cellWidth:42}, 2:{cellWidth:28},
+      3:{cellWidth:18,halign:'right'}, 4:{cellWidth:8,halign:'center'},
+      5:{cellWidth:18,halign:'right'}, 6:{cellWidth:12,halign:'center'},
+      7:{cellWidth:12,halign:'center'}, 8:{cellWidth:14,halign:'right'},
+      9:{cellWidth:18,halign:'right'},
+    }
+  });
+  y = doc.lastAutoTable.finalY + 5;
+
+  // Totals
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+  doc.text(`Total: ${fmtINR(amount)}`, R, y, {align:'right'}); y+=6;
+
+  // Amount in words
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W);
+  doc.setFillColor(249,249,249); doc.rect(L, y-3, W, wl.length*4.5+3, 'F');
+  doc.text(wl, L+2, y); y += wl.length*4.5+5;
+  doc.setFont('helvetica','bold');
+  doc.text(`From ${coName}`, L, y); y+=8;
+
+  // Separator
+  doc.setDrawColor(200); doc.line(L, y, R, y); y+=5;
+
+  // Footer
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text('SOLD BY', L, y); y+=5;
+  doc.text(coName, L, y); y+=4.5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  if(coAddr){ const ls=doc.splitTextToSize(coAddr,90); doc.text(ls,L,y); y+=ls.length*4; }
+  if(co.pan)  { doc.text(`PAN No: ${co.pan}`,  L, y); y+=4; }
+  if(co.gst)  { doc.text(`GST Registration No: ${co.gst}`, L, y); y+=4; }
+  if(co.cin)  { doc.text(`CIN No: ${co.cin}`,  L, y); y+=4; }
+
+  // Signature
+  const ph = doc.internal.pageSize.height;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(`For ${coName}`, R, ph-20, {align:'right'});
+  doc.line(R-40, ph-16, R, ph-16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.text(co.signatory||'Authorised Signatory', R, ph-12, {align:'right'});
+  doc.text(co.designation||'Director', R, ph-7, {align:'right'});
+
+  return doc.output('blob');
+}
+
+/* ═══════════════════════════════════════════════
+   BUILD DOCX
+═══════════════════════════════════════════════ */
+function wP(t, opts={}) {
+  const bold=opts.bold?'<w:b/>':'';
+  const sz=opts.size?`<w:sz w:val="${opts.size*2}"/>`:'';
+  const align=opts.align?`<w:jc w:val="${opts.align}"/>`:'';
+  const ppr=align?`<w:pPr>${align}</w:pPr>`:'';
+  const rpr=(bold||sz)?`<w:rPr>${bold}${sz}</w:rPr>`:'';
+  return String(t??'').split('\n').map(line=>`<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`).join('');
+}
+const eX = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function wTR(cells,opts={}) {
+  return `<w:tr>${cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c,opts)}</w:tc>`).join('')}</w:tr>`;
+}
+function wTable(rows) {
+  const b=`<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${b}</w:tblPr>${rows}</w:tbl>`;
+}
+
+async function buildDOCX(row, profile, invNum) {
+  const co = S.company||{};
+  const p = profile||{};
+  const amount = Number(row['Transaction Amount']||0);
+  const merchantName = p.name||row['Seller Name']||'';
+  const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
+  const coName = co.name||'YOUR COMPANY';
+  const words = numWords(amount);
+  const invDate = parseDate(new Date());
+  const txDate = parseDate(row['Transaction Date']);
+  const utr = row['Transaction UTR Number']||'';
+  const settlementRecId = row['Seller Settlement Records ID']||'';
+  const txRef = row['Transaction Reference Number']||'';
+  const txType = row['Transaction Type']||'COLLECTION';
+
+  let body='';
+  body += wP('Tax Invoice', {bold:true,size:14});
+  body += wP('(Original for Recipient)', {size:9});
+  body += wP('');
+  body += wP(coName, {bold:true,size:13,align:'right'});
+  body += wP('');
+  body += wTable(
+    wTR([`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`],{size:9}) +
+    wTR([`Transaction Date: ${txDate}`, `Seller ID: ${row['Seller ID']||''}`],{size:9})
+  );
+  body += wP('');
+  body += wTable(
+    wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8}) +
+    wTR([
+      [merchantName, fullBillAddr, p.gst?`GST: ${p.gst}`:'', p.pan?`PAN: ${p.pan}`:''].filter(Boolean).join('\n'),
+      [merchantName, fullBillAddr].filter(Boolean).join('\n')
+    ],{size:9})
+  );
+  body += wP('');
+  body += wTable(
+    wTR(['SI.No','Description','UTR Number','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8}) +
+    wTR(['1', `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`, utr, fmtINR(amount),'1',fmtINR(amount),'—','—','—',fmtINR(amount)],{size:8}) +
+    wTR(['','','','','','','','','TOTAL:',fmtINR(amount)],{bold:true,size:8})
+  );
+  body += wP('');
+  body += wP(`Total: ${fmtINR(amount)}`, {bold:true,size:11,align:'right'});
+  body += wP('');
+  body += wP(`Amount in Words: ${words}`, {size:9});
+  body += wP(`From ${coName}`, {bold:true,size:10});
+  body += wP('');
+  body += wP('SOLD BY', {bold:true,size:9});
+  body += wP(coName, {bold:true,size:10});
+  const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  if(coAddr) body += wP(coAddr, {size:9});
+  if(co.pan) body += wP(`PAN No: ${co.pan}`, {size:9});
+  if(co.gst) body += wP(`GST Registration No: ${co.gst}`, {size:9});
+  if(co.cin) body += wP(`CIN No: ${co.cin}`, {size:9});
+  body += wP('');
+  body += wP(`For ${coName}`, {bold:true,size:10,align:'right'});
+  body += wP(co.signatory||'Authorised Signatory', {size:9,align:'right'});
+  body += wP(co.designation||'Director', {size:9,align:'right'});
+
+  const z = new JSZip();
+  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+  z.folder('_rels').file('.rels',`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  z.folder('word').file('document.xml',`<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr></w:body></w:document>`);
+  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+
+/* ═══════════════════════════════════════════════
+   PAGE: MERCHANT PROFILES
+═══════════════════════════════════════════════ */
+function matchProfile(profile, sellerName) {
+  if(!profile||!sellerName) return false;
+  const a = profile.name.toLowerCase().trim();
+  const b = (sellerName||'').toLowerCase().trim();
+  return a===b || a.includes(b) || b.includes(a);
+}
+
+function viewProfiles() {
+  return `
+  <div style="margin-bottom:24px;">
+    <h1>Merchant Profiles</h1>
+    <p class="page-sub">Store billing details for each merchant once. When generating invoices, the matching profile fills in their GST, PAN, and address automatically.</p>
+  </div>
+
+  <div class="note info" style="margin-bottom:18px;">
+    💡 <b>How matching works:</b> The merchant's name from your Excel is matched against profile names. 
+    Partial matches work — "VISCOSE TECHNOLOGY" will match "VISCOSE TECHNOLOGY PRIVATE LIMITED".
+  </div>
+
+  <div class="card">
+    <div class="row-between" style="margin-bottom:16px;">
+      <div class="card-title" style="margin:0;">Add Merchant Profile</div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Merchant / Company Name *</label><input type="text" id="pf_name" placeholder="e.g. VISCOSE TECHNOLOGY PRIVATE LIMITED"></div>
+      <div class="field"><label>Seller ID (from Excel)</label><input type="text" id="pf_sid" placeholder="e.g. 41001327"></div>
+      <div class="field"><label>GST Number</label><input type="text" id="pf_gst" placeholder="e.g. 27AAAAA1234A1Z5"></div>
+      <div class="field"><label>PAN Number</label><input type="text" id="pf_pan" placeholder="e.g. AAAAA1234A"></div>
+      <div class="field"><label>CIN Number</label><input type="text" id="pf_cin" placeholder="e.g. U74999MH2020PTC123456"></div>
+      <div class="field"><label>Email</label><input type="text" id="pf_email" placeholder="accounts@company.com"></div>
+    </div>
+    <div class="field"><label>Registered Address</label><input type="text" id="pf_address" placeholder="123, Industrial Area, Phase 1"></div>
+    <div class="grid3">
+      <div class="field"><label>City</label><input type="text" id="pf_city" placeholder="Mumbai"></div>
+      <div class="field"><label>State</label><input type="text" id="pf_state" placeholder="Maharashtra"></div>
+      <div class="field"><label>PIN Code</label><input type="text" id="pf_pin" placeholder="400001"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+      <button class="btn btn-primary" id="saveProfileBtn">Save Profile</button>
+    </div>
+  </div>
+
+  ${S.profiles.length ? `
+  <div class="card">
+    <div class="card-title">Saved Profiles (${S.profiles.length})</div>
+    <div class="profiles-grid">
+      ${S.profiles.map((p,i) => `
+      <div class="profile-card">
+        <div class="profile-card-del">
+          <button class="btn btn-danger btn-xs" data-del-p="${i}">✕</button>
+        </div>
+        <div class="profile-card-name">${esc(p.name)}</div>
+        <div class="profile-card-detail">
+          ${p.sellerId?`ID: ${esc(p.sellerId)}<br>`:''}
+          ${[p.city,p.state].filter(Boolean).join(', ')}<br>
+          ${p.gst?`GST: ${esc(p.gst)}<br>`:''}
+          ${p.pan?`PAN: ${esc(p.pan)}`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>` : `
+  <div class="empty" style="padding:40px 20px;">
+    <div class="empty-icon">🏢</div>
+    <h3>No profiles yet</h3>
+    <p>Add profiles for your merchants above. Invoices can be generated even without profiles — billing fields will just be blank.</p>
+  </div>`}
+  `;
+}
+
+function wireProfiles() {
+  document.getElementById('saveProfileBtn')?.addEventListener('click', () => {
+    const name = document.getElementById('pf_name').value.trim();
+    if(!name) { toast('Company name is required.','bad'); return; }
+    S.profiles.push({
+      id: uid(), name,
+      sellerId: document.getElementById('pf_sid').value.trim(),
+      gst: document.getElementById('pf_gst').value.trim(),
+      pan: document.getElementById('pf_pan').value.trim(),
+      cin: document.getElementById('pf_cin').value.trim(),
+      email: document.getElementById('pf_email').value.trim(),
+      address: document.getElementById('pf_address').value.trim(),
+      city: document.getElementById('pf_city').value.trim(),
+      state: document.getElementById('pf_state').value.trim(),
+      pin: document.getElementById('pf_pin').value.trim(),
     });
+    saveProfiles();
+    toast('Profile saved.','good');
+    render();
   });
-
-  document.querySelectorAll('[data-del-inv]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const id=btn.dataset.delInv;
-      showConfirm(`Delete invoice "${id}"? This cannot be undone.`, async()=>{
-        await dbDelete(STORE_INVOICES,id);
-        S.savedInvoices=S.savedInvoices.filter(i=>String(i.id)!==id);
-        toast('Invoice deleted.','');
-        render();
-      });
-    });
-  });
-
-  const zip=document.getElementById('zipSelectedBtn');
-  if(zip) zip.addEventListener('click',async()=>{
-    const q=libSearch.toLowerCase().trim();
-    const filtered=S.savedInvoices.filter(i=>!q||(i.id+'').toLowerCase().includes(q)||i.customer.toLowerCase().includes(q)||i.sourceFile.toLowerCase().includes(q));
-    const z=new JSZip();
-    filtered.forEach(g=>{ if(g.pdfBlob) z.file(g.pdfName,g.pdfBlob); if(g.docxBlob) z.file(g.docxName,g.docxBlob); });
-    const blob=await z.generateAsync({type:'blob'});
-    triggerDownload(blob,`invoices_${Date.now()}.zip`);
-    toast(`Downloading ${filtered.length} invoices as ZIP.`,'good');
-  });
-
-  const clr=document.getElementById('clearAllBtn');
-  if(clr) clr.addEventListener('click',()=>{
-    showConfirm(`Delete ALL ${S.savedInvoices.length} saved invoices? This cannot be undone.`,async()=>{
-      await dbClearStore(STORE_INVOICES);
-      S.savedInvoices=[];
-      toast('All invoices cleared.','');
+  document.querySelectorAll('[data-del-p]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.profiles.splice(+btn.dataset.delP, 1);
+      saveProfiles();
       render();
     });
   });
 }
 
-/* ============================================================
-   STEP 1 — COMPANY PROFILES
-   ============================================================ */
-let s1tab='manual';
+async function saveProfiles() {
+  await dbPut('settings', { key:'profiles', value: JSON.stringify(S.profiles) });
+}
 
-function viewStep1(){
+/* ═══════════════════════════════════════════════
+   PAGE: LIBRARY
+═══════════════════════════════════════════════ */
+function viewLibrary() {
+  const inv = S.savedInvoices;
+  const total = inv.reduce((s,i)=>s+Number(i.amount||0),0);
   return `
-    <h1>Company Profiles</h1>
-    <p class="sub">Add your company's details once. You can also scan existing invoices / PDFs to extract PAN, GST, CIN automatically.</p>
-    <div class="tab-row">
-      <div class="tab ${s1tab==='manual'?'active':''}" data-tab="manual">✏️ Add manually</div>
-      <div class="tab ${s1tab==='scan'?'active':''}" data-tab="scan">🔍 Scan from invoice / PDF</div>
+  <div style="margin-bottom:24px;">
+    <h1>Saved Invoices</h1>
+    <p class="page-sub">All invoices are stored in your browser and persist across sessions.</p>
+  </div>
+
+  <div class="stats-strip" style="grid-template-columns:repeat(3,1fr);">
+    <div class="stat accent"><div class="stat-val">${inv.length}</div><div class="stat-lbl">Total Invoices</div></div>
+    <div class="stat"><div class="stat-val">${[...new Set(inv.map(i=>i.merchant))].length}</div><div class="stat-lbl">Unique Merchants</div></div>
+    <div class="stat green"><div class="stat-val">${total>0?fmtINR(total):'—'}</div><div class="stat-lbl">Total Value</div></div>
+  </div>
+
+  ${inv.length ? `
+  <div class="card">
+    <div class="row-between" style="margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">All Invoices</div>
+      <div class="row" style="gap:8px;">
+        <button class="btn btn-green btn-sm" id="libZipBtn">⬇ Download all as ZIP</button>
+        <button class="btn btn-danger btn-sm" id="libClearBtn">🗑 Clear all</button>
+      </div>
     </div>
-    ${s1tab==='manual'?viewManualProfile():viewScanProfile()}
-    ${S.profiles.length?`
-    <div class="card" style="margin-top:18px;">
-      <h3>Saved profiles (${S.profiles.length})</h3>
-      <div class="profiles-grid">${S.profiles.map((p,i)=>profileCard(p,i)).join('')}</div>
-      <div class="topright"><button class="btn" id="toStep2">Continue to upload data →</button></div>
-    </div>`:''}
+    <div class="tbl-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Invoice No</th><th>Merchant</th><th>Amount</th><th>UTR</th><th>Saved</th><th>Download</th></tr>
+        </thead>
+        <tbody>
+          ${inv.sort((a,b)=>b.savedAt-a.savedAt).map(i=>`
+          <tr>
+            <td style="font-weight:700;">${esc(i.invNum)}</td>
+            <td>${esc(i.merchant)}</td>
+            <td style="font-weight:700;color:var(--green);">${fmtINR(i.amount)}</td>
+            <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(i.utr)}</td>
+            <td style="font-size:11px;color:var(--muted);">${fmt(i.savedAt)}</td>
+            <td>
+              <div class="row" style="gap:5px;">
+                ${i.pdfB64?`<button class="btn btn-ghost btn-xs" data-lib-pdf="${esc(i.id)}">⬇ PDF</button>`:''}
+                ${i.docxB64?`<button class="btn btn-ghost btn-xs" data-lib-docx="${esc(i.id)}">⬇ DOCX</button>`:''}
+                <button class="btn btn-danger btn-xs" data-lib-del="${esc(i.id)}">✕</button>
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>` : `
+  <div class="empty">
+    <div class="empty-icon">📁</div>
+    <h3>No invoices saved yet</h3>
+    <p>Generated invoices appear here automatically.</p>
+  </div>`}
   `;
 }
 
-function viewManualProfile(){
-  return `<div class="card">
-    <h3>Add company / customer profile</h3>
-    <div class="note"><b>Tip:</b> Add your own company first and mark it as "My Company". Profiles are auto-attached to invoices based on name/GST match.</div>
-    <div class="profile-grid">
-      <div class="profile-field"><label>Company / Customer Name *</label><input type="text" id="pf_name" placeholder="ACME Pvt Ltd"></div>
-      <div class="profile-field"><label>PAN Number</label><input type="text" id="pf_pan" placeholder="AAACA1234A"></div>
-      <div class="profile-field"><label>GST Number</label><input type="text" id="pf_gst" placeholder="27AAACA1234A1Z5"></div>
-      <div class="profile-field"><label>CIN Number</label><input type="text" id="pf_cin" placeholder="U74999MH2020PTC123456"></div>
-      <div class="profile-field" style="grid-column:span 2;"><label>Registered Address</label><input type="text" id="pf_address" placeholder="123, Industrial Area, Phase 1"></div>
-      <div class="profile-field"><label>City</label><input type="text" id="pf_city" placeholder="Mumbai"></div>
-      <div class="profile-field"><label>State</label><input type="text" id="pf_state" placeholder="Maharashtra"></div>
-      <div class="profile-field"><label>PIN Code</label><input type="text" id="pf_pin" placeholder="400001"></div>
-      <div class="profile-field"><label>Email</label><input type="text" id="pf_email" placeholder="accounts@acme.com"></div>
-      <div class="profile-field"><label>Phone</label><input type="text" id="pf_phone" placeholder="+91 98765 43210"></div>
-      <div class="profile-field"><label>Authorised Signatory</label><input type="text" id="pf_signatory" placeholder="Name, Designation"></div>
-    </div>
-    <div class="row" style="margin-top:12px;">
-      <label style="font-size:12.5px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="pf_isown"> <span>This is <b>my company</b> (seller / biller)</span>
-      </label>
-    </div>
-    <div class="topright" style="margin-top:12px;"><button class="btn" id="saveProfileBtn">Save profile</button></div>
-  </div>`;
-}
-
-function viewScanProfile(){
-  return `<div class="card">
-    <h3>Scan invoice / document to extract company details</h3>
-    <div class="note"><b>How it works:</b> Upload an existing PDF invoice. The tool reads the text and extracts PAN, GST, CIN, company names and addresses automatically.</div>
-    <div class="drop" id="scanDrop">
-      <div class="drop-icon">📄</div>
-      <div><b>Click to upload</b> or drag a PDF invoice here</div>
-      <div class="small" style="margin-top:6px;">Text-based PDFs work best.</div>
-      <input type="file" id="scanInput" accept=".pdf,.png,.jpg,.jpeg">
-    </div>
-    <div id="scanResult"></div>
-  </div>`;
-}
-
-function profileCard(p,i){
-  const fields=[p.pan&&`PAN: ${p.pan}`,p.gst&&`GST: ${p.gst}`,p.cin&&`CIN: ${p.cin}`].filter(Boolean);
-  return `<div class="profile-card">
-    ${p.isOwn?`<span class="badge good" style="margin-bottom:6px;display:inline-flex;">✓ My Company</span>`:''}
-    <div class="pc-name">${esc(p.name)}</div>
-    <div class="pc-gst">${esc([p.city,p.state].filter(Boolean).join(', '))}</div>
-    <div class="pc-badges">${fields.map(f=>`<span class="badge info">${esc(f)}</span>`).join('')}</div>
-    <div class="pc-action"><button class="btn danger xs" data-del-profile="${i}">✕</button></div>
-  </div>`;
-}
-
-function wireStep1(){
-  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.addEventListener('click',()=>{s1tab=t.dataset.tab;render();}));
-  const saveBtn=document.getElementById('saveProfileBtn');
-  if(saveBtn) saveBtn.addEventListener('click',()=>{
-    const name=document.getElementById('pf_name').value.trim();
-    if(!name){alert('Company name is required.');return;}
-    const isOwn=document.getElementById('pf_isown').checked;
-    const profile={id:uid(),name,isOwn,pan:document.getElementById('pf_pan').value.trim(),gst:document.getElementById('pf_gst').value.trim(),cin:document.getElementById('pf_cin').value.trim(),address:document.getElementById('pf_address').value.trim(),city:document.getElementById('pf_city').value.trim(),state:document.getElementById('pf_state').value.trim(),pin:document.getElementById('pf_pin').value.trim(),email:document.getElementById('pf_email').value.trim(),phone:document.getElementById('pf_phone').value.trim(),signatory:document.getElementById('pf_signatory').value.trim()};
-    if(isOwn) S.profiles.forEach(p=>p.isOwn=false);
-    S.profiles.push(profile);
-    if(isOwn) S.ownProfile=S.profiles.length-1;
-    toast('Profile saved.','good'); render();
+function wireLibrary() {
+  document.getElementById('libZipBtn')?.addEventListener('click', async () => {
+    const z = new JSZip();
+    S.savedInvoices.forEach(i => {
+      if(i.pdfB64) z.file(i.invNum+'.pdf', b64ToBlob(i.pdfB64,'application/pdf'));
+      if(i.docxB64) z.file(i.invNum+'.docx', b64ToBlob(i.docxB64,'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
+    });
+    const blob = await z.generateAsync({type:'blob'});
+    triggerDL(blob, `all_invoices_${Date.now()}.zip`);
+    toast(`Downloading ${S.savedInvoices.length} invoices as ZIP.`,'good');
   });
-  const toStep2=document.getElementById('toStep2');
-  if(toStep2) toStep2.addEventListener('click',()=>goto(2));
-  document.querySelectorAll('[data-del-profile]').forEach(btn=>{btn.addEventListener('click',()=>{S.profiles.splice(+btn.dataset.delProfile,1);render();});});
-  const scanDrop=document.getElementById('scanDrop');
-  const scanInput=document.getElementById('scanInput');
-  if(scanDrop){
-    scanDrop.addEventListener('click',()=>scanInput.click());
-    ['dragenter','dragover'].forEach(ev=>scanDrop.addEventListener(ev,e=>{e.preventDefault();scanDrop.classList.add('over');}));
-    ['dragleave','drop'].forEach(ev=>scanDrop.addEventListener(ev,e=>{e.preventDefault();scanDrop.classList.remove('over');}));
-    scanDrop.addEventListener('drop',e=>{if(e.dataTransfer.files[0]) handleScanFile(e.dataTransfer.files[0]);});
-    scanInput.addEventListener('change',e=>{if(e.target.files[0]) handleScanFile(e.target.files[0]);});
-  }
-}
 
-async function handleScanFile(file){
-  const res=document.getElementById('scanResult'); if(!res) return;
-  res.innerHTML=`<div class="scan-status">⏳ Reading document…</div>`;
-  try{
-    let text='';
-    if(file.type==='application/pdf'||file.name.endsWith('.pdf')) text=await extractPdfText(file);
-    else text='IMAGE_FILE_NO_TEXT';
-    const extracted=parseInvoiceText(text);
-    res.innerHTML=renderScanResult(extracted);
-    wireScanResult(extracted);
-  }catch(e){ res.innerHTML=`<div class="note" style="color:var(--bad);">Error reading file: ${esc(e.message)}</div>`; }
-}
-
-async function extractPdfText(file){
-  const pdfjsLib=window['pdfjs-dist/build/pdf'];
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const arrayBuffer=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-  let text='';
-  for(let i=1;i<=Math.min(pdf.numPages,4);i++){
-    const page=await pdf.getPage(i);
-    const content=await page.getTextContent();
-    text+=content.items.map(it=>it.str).join(' ')+'\n';
-  }
-  return text;
-}
-
-function parseInvoiceText(text){
-  if(text==='IMAGE_FILE_NO_TEXT') return{_noText:true};
-  const result={};
-  const panMatch=text.match(/\b([A-Z]{5}[0-9]{4}[A-Z])\b/); if(panMatch) result.pan=panMatch[1];
-  const gstMatch=text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z])\b/); if(gstMatch) result.gst=gstMatch[1];
-  const cinMatch=text.match(/\b([UL][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6})\b/); if(cinMatch) result.cin=cinMatch[1];
-  const emailMatch=text.match(/\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b/); if(emailMatch) result.email=emailMatch[1];
-  const phoneMatch=text.match(/(\+91[\s\-]?[0-9]{10}|[0-9]{10})/); if(phoneMatch) result.phone=phoneMatch[1];
-  const coMatch=text.match(/([A-Z][A-Za-z0-9 &\-\.]{3,60}(?:Private Limited|Pvt\.?\s*Ltd\.?|LLP|Inc\.|Corp\.|Technologies|Enterprises|Solutions|Trading|Exports|Imports))/); if(coMatch) result.name=coMatch[1].trim();
-  const pinMatch=text.match(/\b([0-9]{6})\b/); if(pinMatch) result.pin=pinMatch[1];
-  const states=['Maharashtra','Delhi','Karnataka','Tamil Nadu','Gujarat','Rajasthan','Uttar Pradesh','West Bengal','Telangana','Kerala','Haryana','Punjab','Madhya Pradesh','Bihar','Andhra Pradesh','Odisha','Jharkhand','Chhattisgarh','Assam','Himachal Pradesh','Uttarakhand','Goa'];
-  for(const st of states){if(text.includes(st)){result.state=st;break;}}
-  const addrMatch=text.match(/(?:Address|Regd\. Office|Registered Office)[:\s]+([^\n]{10,80})/i); if(addrMatch) result.address=addrMatch[1].trim();
-  return result;
-}
-
-function renderScanResult(ex){
-  if(ex._noText) return`<div class="note" style="margin-top:12px;"><b>Image files:</b> Cannot extract text from images automatically. Please use "Add manually" or upload a text-based PDF.</div>`;
-  const found=Object.keys(ex).filter(k=>k!=='_noText').length;
-  if(found===0) return`<div class="note" style="margin-top:12px;">No structured data found. The PDF may be scanned/image-based. Try adding the profile manually.</div>`;
-  return`<div class="card" style="margin-top:12px;"><h3>Extracted data — review &amp; save</h3>
-    <div class="profile-grid" id="scanEditGrid">
-      <div class="profile-field"><label>Company Name</label><input type="text" id="sc_name" value="${esc(ex.name||'')}"></div>
-      <div class="profile-field"><label>PAN</label><input type="text" id="sc_pan" value="${esc(ex.pan||'')}"></div>
-      <div class="profile-field"><label>GST</label><input type="text" id="sc_gst" value="${esc(ex.gst||'')}"></div>
-      <div class="profile-field"><label>CIN</label><input type="text" id="sc_cin" value="${esc(ex.cin||'')}"></div>
-      <div class="profile-field" style="grid-column:span 2;"><label>Address</label><input type="text" id="sc_address" value="${esc(ex.address||'')}"></div>
-      <div class="profile-field"><label>State</label><input type="text" id="sc_state" value="${esc(ex.state||'')}"></div>
-      <div class="profile-field"><label>PIN</label><input type="text" id="sc_pin" value="${esc(ex.pin||'')}"></div>
-      <div class="profile-field"><label>Email</label><input type="text" id="sc_email" value="${esc(ex.email||'')}"></div>
-      <div class="profile-field"><label>Phone</label><input type="text" id="sc_phone" value="${esc(ex.phone||'')}"></div>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <label style="font-size:12.5px;display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="sc_isown"> <span>This is <b>my company</b></span></label>
-      <button class="btn" id="saveScanProfile">Save extracted profile</button>
-    </div>
-  </div>`;
-}
-
-function wireScanResult(ex){
-  const btn=document.getElementById('saveScanProfile'); if(!btn) return;
-  btn.addEventListener('click',()=>{
-    const name=document.getElementById('sc_name').value.trim(); if(!name){alert('Please enter company name.');return;}
-    const isOwn=document.getElementById('sc_isown').checked;
-    if(isOwn) S.profiles.forEach(p=>p.isOwn=false);
-    const profile={id:uid(),name,isOwn,pan:document.getElementById('sc_pan').value.trim(),gst:document.getElementById('sc_gst').value.trim(),cin:document.getElementById('sc_cin').value.trim(),address:document.getElementById('sc_address').value.trim(),city:'',state:document.getElementById('sc_state').value.trim(),pin:document.getElementById('sc_pin').value.trim(),email:document.getElementById('sc_email').value.trim(),phone:document.getElementById('sc_phone').value.trim(),signatory:''};
-    S.profiles.push(profile); if(isOwn) S.ownProfile=S.profiles.length-1;
-    s1tab='manual'; toast('Profile saved from scan.','good'); render();
+  document.getElementById('libClearBtn')?.addEventListener('click', async () => {
+    if(!confirm(`Delete all ${S.savedInvoices.length} saved invoices? This cannot be undone.`)) return;
+    await dbClear('invoices');
+    S.savedInvoices = [];
+    toast('All invoices deleted.','');
+    render();
   });
-}
 
-/* ============================================================
-   STEP 2 — MULTI-FILE UPLOAD
-   ============================================================ */
-function viewStep2(){
-  const q=S.fileQueue;
-  const activeDs=S.dataset;
-  return`
-    <h1>Upload invoice data</h1>
-    <p class="sub">Upload one or multiple CSV / XLSX files. Each file is processed in sequence — or use all rows from a single file as individual invoices.</p>
-
-    <div class="card">
-      <div class="note"><b>Multi-file support:</b> Drop multiple files at once. Each file's rows become invoices. You'll map fields once (applied to all files with matching headers) and generate in one batch.</div>
-      <div class="drop" id="dropZone" style="margin-top:12px;">
-        <div class="drop-icon">📊</div>
-        <div><b>Click to upload</b> or drag your .xlsx / .csv files here</div>
-        <div class="small" style="margin-top:6px;">Multiple files accepted. First row of each must be column headers.</div>
-        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple>
-      </div>
-
-      ${q.length>0?`
-      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
-        <h3 style="margin:0;">Queued files (${q.length})</h3>
-        <button class="btn secondary xs" id="clearQueue">Clear all</button>
-      </div>
-      <div class="file-queue">
-        ${q.map((f,i)=>`
-          <div class="fq-item">
-            <div class="fq-name">📄 ${esc(f.name)}</div>
-            <div class="fq-meta">${f.rows.length} rows · ${f.headers.length} cols</div>
-            <div class="fq-status ${f.status==='ok'?'ok':'err'}">${f.status==='ok'?'✓ Ready':'⚠ '+esc(f.error||'')}</div>
-            <button class="btn danger xs" data-del-fq="${i}">✕</button>
-          </div>
-        `).join('')}
-      </div>
-
-      <div style="margin-top:14px;">
-        <label class="lbl">Which column uniquely identifies each invoice? (used for naming output files)</label>
-        <select id="uniqueColSel">
-          ${(q[0]?.headers||[]).map(h=>`<option value="${esc(h)}" ${h===S.dataset.uniqueCol?'selected':''}>${esc(h)}</option>`).join('')}
-        </select>
-      </div>
-
-      <div style="overflow-x:auto;margin-top:12px;">
-        <div class="small" style="margin-bottom:6px;">Preview: first 5 rows of "${esc(q[0]?.name||'')}"</div>
-        <table class="preview">
-          <tr>${(q[0]?.headers||[]).map(h=>`<th>${esc(h)}</th>`).join('')}</tr>
-          ${(q[0]?.rows||[]).slice(0,5).map(r=>`<tr>${(q[0].headers).map(h=>`<td>${esc(r[h])}</td>`).join('')}</tr>`).join('')}
-        </table>
-      </div>
-
-      <div class="topright">
-        <button class="btn" id="toStep3">Map fields →</button>
-      </div>
-      `:''}
-    </div>
-  `;
-}
-
-function wireStep2(){
-  const drop=document.getElementById('dropZone');
-  const input=document.getElementById('fileInput');
-  if(drop){
-    drop.addEventListener('click',()=>input.click());
-    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
-    drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files.length) handleDataFiles(e.dataTransfer.files);});
-    input.addEventListener('change',e=>{if(e.target.files.length) handleDataFiles(e.target.files);});
-  }
-  const sel=document.getElementById('uniqueColSel');
-  if(sel) sel.addEventListener('change',e=>S.dataset.uniqueCol=e.target.value);
-  const clr=document.getElementById('clearQueue');
-  if(clr) clr.addEventListener('click',()=>{S.fileQueue=[];S.dataset={headers:[],rows:[],uniqueCol:'',sourceFile:''};render();});
-  document.querySelectorAll('[data-del-fq]').forEach(btn=>btn.addEventListener('click',()=>{S.fileQueue.splice(+btn.dataset.delFq,1);if(S.fileQueue.length>0) mergeQueue(); else{S.dataset={headers:[],rows:[],uniqueCol:'',sourceFile:''};}render();}));
-  const next=document.getElementById('toStep3');
-  if(next) next.addEventListener('click',()=>{mergeQueueForMapping();autoMapFields();goto(3);});
-}
-
-function handleDataFiles(files){
-  const arr=Array.from(files);
-  let pending=arr.length;
-  arr.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      try{
-        const data=new Uint8Array(e.target.result);
-        const wb=XLSX.read(data,{type:'array',cellDates:false});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const json=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-        if(!json.length) throw new Error('No rows found');
-        const headers=Object.keys(json[0]);
-        S.fileQueue.push({name:file.name, headers, rows:json, uniqueCol:headers[0], status:'ok'});
-      }catch(err){
-        S.fileQueue.push({name:file.name, headers:[], rows:[], uniqueCol:'', status:'err', error:err.message});
-      }
-      pending--;
-      if(pending===0){ mergeQueue(); render(); }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function mergeQueue(){
-  // Union of ALL files' headers for preview (so Step 3 dropdown shows every column)
-  const valid=S.fileQueue.filter(f=>f.status==='ok');
-  if(!valid.length) return;
-  const seen=new Set(); const allHeaders=[];
-  valid.forEach(f=>f.headers.forEach(h=>{ if(!seen.has(h)){seen.add(h);allHeaders.push(h);} }));
-  S.dataset.headers=allHeaders;
-  S.dataset.uniqueCol=valid[0].uniqueCol;
-  S.dataset.sourceFile=valid[0].name;
-  // Store per-file header map so Step 3 can show which file each col belongs to
-  S.dataset.fileHeaders=valid.map(f=>({name:f.name,headers:f.headers}));
-}
-
-function mergeQueueForMapping(){
-  // Merge all valid files into S.dataset.rows, tagging each row with its source
-  const valid=S.fileQueue.filter(f=>f.status==='ok');
-  if(!valid.length) return;
-  // Union headers
-  const seen=new Set(); const allHeaders=[];
-  valid.forEach(f=>f.headers.forEach(h=>{ if(!seen.has(h)){seen.add(h);allHeaders.push(h);} }));
-  S.dataset.headers=allHeaders;
-  S.dataset.fileHeaders=valid.map(f=>({name:f.name,headers:f.headers}));
-  S.dataset.uniqueCol=S.dataset.uniqueCol||valid[0].uniqueCol;
-  const allRows=[];
-  valid.forEach(f=>{
-    f.rows.forEach(r=>{ allRows.push({...r, __source:f.name}); });
-  });
-  S.dataset.rows=allRows;
-  S.dataset.sourceFile=valid.length===1?valid[0].name:`${valid.length} files`;
-}
-
-function autoMapFields(){
-  S.mapping={}; S.statics={};
-  INVOICE_FIELDS.forEach(f=>{ S.mapping[f.key]=autoMatch(f.label,S.dataset.headers); });
-}
-
-/* ============================================================
-   STEP 3 — MAP FIELDS
-   ============================================================ */
-function viewStep3(){
-  const own=S.profiles.find(p=>p.isOwn);
-  const sample=S.dataset.rows[0]||{};
-  return`
-    <h1>Map your columns to invoice fields</h1>
-    <p class="sub">Auto-matched where possible. Pick a column from your data, or type a fixed value that stays the same on every invoice.</p>
-
-    ${own?`<div class="note" style="margin-bottom:14px;"><b>Your company (${esc(own.name)})</b> is set as the seller — PAN, GST, CIN will be auto-filled on every invoice.</div>`:
-    `<div class="note" style="margin-bottom:14px;color:var(--warn);"><b>No "My Company" profile set.</b> Go back to Step 1 to add your company profile.</div>`}
-
-    <div class="card">
-      <h3>Customer profile auto-match</h3>
-      <p class="small" style="margin-bottom:10px;">If a row's customer name or GST matches a saved profile, that profile's details are pulled in automatically.</p>
-      <label class="lbl">Which column contains the customer name or GST?</label>
-      <select id="matchColSel">
-        <option value="">— don't auto-match profiles —</option>
-        ${S.dataset.headers.map(h=>`<option value="${esc(h)}" ${h===S.mapping['bill_name']?'selected':''}>${esc(h)}</option>`).join('')}
-      </select>
-    </div>
-
-    <div class="card">
-      <h3>Field mapping</h3>
-      ${(S.dataset.fileHeaders||[]).length>1?`
-      <div class="note" style="margin-bottom:10px;">
-        <b>${S.dataset.fileHeaders.length} files loaded.</b> Columns from all files are shown below.
-        A column that only exists in some files will be blank for rows from other files — that's expected.
-        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">
-          ${S.dataset.fileHeaders.map((f,i)=>`<span class="badge" style="background:#${['0a1533','0f2a1c','2e2410','1a1040'][i%4]};color:${['#5b8cff','#5fd394','#f0b54e','#a78bfa'][i%4]};">📄 ${esc(f.name)}: ${f.headers.length} cols</span>`).join('')}
-        </div>
-      </div>`:''}
-      <div class="col-mapper">
-        ${INVOICE_FIELDS.map(f=>{
-          // Build option list grouped by file when multiple files
-          const fh=S.dataset.fileHeaders||[];
-          const multiFile=fh.length>1;
-          let optHtml='<option value="">— type a fixed value —</option>';
-          if(multiFile){
-            // Group columns by which files they appear in
-            const colFileMap={};
-            S.dataset.headers.forEach(h=>{
-              colFileMap[h]=fh.filter(fi=>fi.headers.includes(h)).map(fi=>fi.name);
-            });
-            fh.forEach((fi,fi_i)=>{
-              const cols=fi.headers;
-              const color=['#5b8cff','#5fd394','#f0b54e','#a78bfa'][fi_i%4];
-              optHtml+=`<optgroup label="📄 ${fi.name}">`;
-              cols.forEach(h=>{ optHtml+=`<option value="${esc(h)}" ${S.mapping[f.key]===h?'selected':''}>${esc(h)}</option>`; });
-              optHtml+=`</optgroup>`;
-            });
-          } else {
-            S.dataset.headers.forEach(h=>{ optHtml+=`<option value="${esc(h)}" ${S.mapping[f.key]===h?'selected':''}>${esc(h)}</option>`; });
-          }
-          // Sample: find first row that actually has this column non-empty
-          const mappedCol=S.mapping[f.key];
-          let sampleVal=S.statics[f.key]||'';
-          if(mappedCol){
-            const found=S.dataset.rows.find(r=>getVal(r,mappedCol)!=='');
-            sampleVal=found?getVal(found,mappedCol):'(no data in any row)';
-          }
-          return`<div class="cm-row">
-            <div class="cm-key">${esc(f.label)}${f.required?` <span style="color:var(--bad);">*</span>`:''}</div>
-            <div class="cm-arrow">→</div>
-            <div class="cm-val"><select data-map="${esc(f.key)}">${optHtml}</select></div>
-            <div class="cm-val" style="margin-left:8px;"><input type="text" data-static="${esc(f.key)}" placeholder="or fixed value…" value="${esc(S.statics[f.key]||'')}" ${mappedCol?'disabled':''}></div>
-            <div class="cm-sample" title="${esc(sampleVal)}">${esc(sampleVal)}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-    <div class="topright"><button class="btn" id="toStep4">Preview invoice →</button></div>
-  `;
-}
-
-function wireStep3(){
-  document.querySelectorAll('[data-map]').forEach(sel=>{
-    sel.addEventListener('change',e=>{
-      const key=sel.dataset.map; S.mapping[key]=e.target.value;
-      const si=document.querySelector(`[data-static="${key}"]`); if(si) si.disabled=!!e.target.value;
-      const cmRow=sel.closest('.cm-row');
-      if(cmRow){
-        let sampleVal=S.statics[key]||'';
-        if(e.target.value){
-          const found=S.dataset.rows.find(r=>getVal(r,e.target.value)!=='');
-          sampleVal=found?getVal(found,e.target.value):'(no data in any row)';
-        }
-        const sp=cmRow.querySelector('.cm-sample');
-        if(sp){sp.textContent=sampleVal;sp.title=sampleVal;}
-      }
+  document.querySelectorAll('[data-lib-pdf]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inv = S.savedInvoices.find(i=>i.id===btn.dataset.libPdf);
+      if(inv?.pdfB64) triggerDL(b64ToBlob(inv.pdfB64,'application/pdf'), inv.invNum+'.pdf');
     });
   });
-  document.querySelectorAll('[data-static]').forEach(inp=>inp.addEventListener('input',e=>S.statics[inp.dataset.static]=e.target.value));
-  const mc=document.getElementById('matchColSel'); if(mc) mc.addEventListener('change',e=>S._matchCol=e.target.value);
-  document.getElementById('toStep4').addEventListener('click',()=>goto(4));
+  document.querySelectorAll('[data-lib-docx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inv = S.savedInvoices.find(i=>i.id===btn.dataset.libDocx);
+      if(inv?.docxB64) triggerDL(b64ToBlob(inv.docxB64,'application/vnd.openxmlformats-officedocument.wordprocessingml.document'), inv.invNum+'.docx');
+    });
+  });
+  document.querySelectorAll('[data-lib-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('Delete this invoice?')) return;
+      await dbDel('invoices', btn.dataset.libDel);
+      S.savedInvoices = S.savedInvoices.filter(i=>i.id!==btn.dataset.libDel);
+      toast('Invoice deleted.');
+      render();
+    });
+  });
 }
 
-/* ============================================================
-   STEP 4 — PREVIEW & GENERATE
-   ============================================================ */
-let previewRowIdx=0;
+async function loadInvoices() {
+  return await dbGetAll('invoices');
+}
 
-function viewStep4(){
-  const rows=S.dataset.rows;
-  const row=rows[previewRowIdx]||{};
-  const own=S.profiles.find(p=>p.isOwn);
-  const custProfile=findCustomerProfile(row);
-  const gen=S.generated;
-  const totalFiles=[...new Set(rows.map(r=>r.__source).filter(Boolean))];
+/* ═══════════════════════════════════════════════
+   PAGE: YOUR COMPANY SETTINGS
+═══════════════════════════════════════════════ */
+function viewSettings() {
+  const c = S.company||{};
+  return `
+  <div style="margin-bottom:24px;">
+    <h1>Your Company (Seller Details)</h1>
+    <p class="page-sub">These details appear in the "Sold By" section on every invoice. Set this once.</p>
+  </div>
 
-  return`
-    <h1>Preview &amp; Generate</h1>
-    <p class="sub">${rows.length} invoice${rows.length!==1?'s':''} ready${totalFiles.length>1?` from ${totalFiles.length} files`:''} — preview any row, then generate the full batch.</p>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <div class="row" style="gap:8px;">
-          <label class="lbl" style="margin:0;">Preview row:</label>
-          <button class="btn secondary sm" id="prevRow" ${previewRowIdx===0?'disabled':''}>← Prev</button>
-          <span class="small">${previewRowIdx+1} / ${rows.length}</span>
-          <button class="btn secondary sm" id="nextRow" ${previewRowIdx>=rows.length-1?'disabled':''}>Next →</button>
-          ${row.__source?`<span class="badge purple">📄 ${esc(row.__source)}</span>`:''}
-        </div>
-        ${custProfile?`<span class="badge good">✓ Profile: ${esc(custProfile.name)}</span>`:`<span class="badge warn">No profile matched</span>`}
-      </div>
-      <div id="invoicePreview">${renderInvoiceHtml(row,own,custProfile)}</div>
+  <div class="card">
+    <div class="note info" style="margin-bottom:16px;">
+      Based on the invoice PDF you shared, the seller is <b>PAYBUZZ PAYMENTS PRIVATE LIMITED</b>. 
+      Fill in your actual company details below.
     </div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-          <button class="btn" id="genAllBtn">⚡ Generate all ${rows.length} invoices</button>
-          <span class="small" style="margin-left:10px;">Saves PDF + DOCX to your library automatically</span>
-        </div>
-      </div>
-      <div class="progress" style="margin-top:12px;"><div id="progBar"></div></div>
-      <div class="small" id="progText"></div>
+    <div class="grid2">
+      <div class="field"><label>Company Name *</label><input type="text" id="co_name" value="${esc(c.name||'')}" placeholder="PAYBUZZ PAYMENTS PRIVATE LIMITED"></div>
+      <div class="field"><label>PAN Number</label><input type="text" id="co_pan" value="${esc(c.pan||'')}" placeholder="AANCP1985H"></div>
+      <div class="field"><label>GST Number</label><input type="text" id="co_gst" value="${esc(c.gst||'')}" placeholder="29AANCP1985H1ZS"></div>
+      <div class="field"><label>CIN Number</label><input type="text" id="co_cin" value="${esc(c.cin||'')}" placeholder="U74999KA2022PTC165574"></div>
+      <div class="field"><label>Email</label><input type="text" id="co_email" value="${esc(c.email||'')}" placeholder="accounts@company.com"></div>
+      <div class="field"><label>Phone</label><input type="text" id="co_phone" value="${esc(c.phone||'')}" placeholder="+91 98765 43210"></div>
     </div>
+    <div class="field"><label>Registered Address</label><input type="text" id="co_address" value="${esc(c.address||'')}" placeholder="METRO COMPLEX SHOP NO 5-59/5 GURUPURA MANGALORE"></div>
+    <div class="grid3">
+      <div class="field"><label>City</label><input type="text" id="co_city" value="${esc(c.city||'')}" placeholder="Mangalore"></div>
+      <div class="field"><label>State</label><input type="text" id="co_state" value="${esc(c.state||'')}" placeholder="Karnataka"></div>
+      <div class="field"><label>PIN Code</label><input type="text" id="co_pin" value="${esc(c.pin||'')}" placeholder="574145"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Authorised Signatory Name</label><input type="text" id="co_signatory" value="${esc(c.signatory||'')}" placeholder="e.g. Divitha"></div>
+      <div class="field"><label>Designation</label><input type="text" id="co_designation" value="${esc(c.designation||'')}" placeholder="Director"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-primary" id="saveCompanyBtn">Save Company Details</button>
+    </div>
+  </div>
 
-    ${gen.length?`
-    <div class="card">
-      <div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <h3 style="margin:0;">${gen.length} invoices generated</h3>
-          <span class="small" style="color:var(--good);">✓ Auto-saved to your library</span>
-        </div>
-        <div class="row" style="gap:8px;">
-          <button class="btn secondary" id="viewLibBtn">View saved library →</button>
-          <button class="btn secondary" id="zipAllBtn">⬇ Download all as ZIP</button>
-        </div>
-      </div>
-      <table class="results-table">
-        <tr><th>Invoice ID</th><th>Customer</th><th>Total</th><th>Source</th><th>PDF</th><th>DOCX</th></tr>
-        ${gen.map(g=>`<tr>
-          <td>${esc(g.id)}</td>
-          <td>${esc(g.customer)}</td>
-          <td>${esc(g.total)}</td>
-          <td><span class="small">${esc(g.sourceFile||'')}</span></td>
-          <td><button class="btn ghost sm" data-dl="pdf" data-row="${esc(g.id)}">⬇ PDF</button></td>
-          <td><button class="btn ghost sm" data-dl="docx" data-row="${esc(g.id)}">⬇ DOCX</button></td>
-        </tr>`).join('')}
-      </table>
-    </div>`:''}
+  ${S.company ? `
+  <div class="note success">
+    ✅ Company details saved: <b>${esc(S.company.name)}</b>
+    ${S.company.gst ? ` · GST: ${esc(S.company.gst)}`:''}
+    ${S.company.pan ? ` · PAN: ${esc(S.company.pan)}`:''}
+  </div>` : ''}
   `;
 }
 
-function findCustomerProfile(row){
-  const col=S._matchCol||S.mapping['bill_name']; if(!col) return null;
-  const val=getVal(row,col).toLowerCase().trim(); if(!val) return null;
-  return S.profiles.find(p=>!p.isOwn&&(p.name.toLowerCase().includes(val)||val.includes(p.name.toLowerCase())||(p.gst&&p.gst.toLowerCase()===val)))||null;
+function wireSettings() {
+  document.getElementById('saveCompanyBtn')?.addEventListener('click', async () => {
+    const name = document.getElementById('co_name').value.trim();
+    if(!name) { toast('Company name is required.','bad'); return; }
+    S.company = {
+      name,
+      pan: document.getElementById('co_pan').value.trim(),
+      gst: document.getElementById('co_gst').value.trim(),
+      cin: document.getElementById('co_cin').value.trim(),
+      email: document.getElementById('co_email').value.trim(),
+      phone: document.getElementById('co_phone').value.trim(),
+      address: document.getElementById('co_address').value.trim(),
+      city: document.getElementById('co_city').value.trim(),
+      state: document.getElementById('co_state').value.trim(),
+      pin: document.getElementById('co_pin').value.trim(),
+      signatory: document.getElementById('co_signatory').value.trim(),
+      designation: document.getElementById('co_designation').value.trim(),
+    };
+    await dbPut('settings', { key:'company', value: JSON.stringify(S.company) });
+    toast('Company details saved!','good');
+    render();
+  });
 }
 
-function renderInvoiceHtml(row,own,custProfile){
-  const f=key=>resolveField(key,row);
-  const cp=custProfile||{};
-  const billName=f('bill_name')||cp.name||'';
-  const billAddr=[f('bill_address')||cp.address,f('bill_city')||cp.city,f('bill_state')||cp.state,f('bill_pin')||cp.pin].filter(Boolean).join(', ');
-  const custGst=cp.gst||''; const custPan=cp.pan||'';
-  const shipName=f('ship_name')||billName; const shipAddr=f('ship_address')||billAddr;
-  const ownName=own?own.name:'YOUR COMPANY';
-  const ownAddr=own?[own.address,own.city,own.state,own.pin].filter(Boolean).join(', '):'';
-  const ownPan=own?own.pan:''; const ownGst=own?own.gst:''; const ownCin=own?own.cin:'';
-  const signatory=own?(own.signatory||`For ${own.name}`):'Authorised Signatory';
-  return`<div class="page">
-    <div class="inv-header">
-      <div><div class="inv-co">${esc(ownName)}</div>${ownAddr?`<div class="inv-tagline">${esc(ownAddr)}</div>`:''} ${ownPan?`<div class="inv-tagline">PAN: ${esc(ownPan)}</div>`:''} ${ownGst?`<div class="inv-tagline">GSTIN: ${esc(ownGst)}</div>`:''} ${ownCin?`<div class="inv-tagline">CIN: ${esc(ownCin)}</div>`:''}</div>
-      <div class="inv-meta"><div class="inv-title">Tax Invoice</div>${f('inv_number')?`<div style="margin-top:6px;"><b>Invoice No:</b> ${esc(f('inv_number'))}</div>`:''} ${f('inv_date')?`<div><b>Invoice Date:</b> ${esc(f('inv_date'))}</div>`:''} ${f('order_date')?`<div><b>Order Date:</b> ${esc(f('order_date'))}</div>`:''}</div>
-    </div>
-    <div class="inv-twocol">
-      <div class="inv-col"><div class="inv-col-title">Bill To</div><div class="inv-col-body">${billName?`<b>${esc(billName)}</b><br>`:''} ${billAddr?`${esc(billAddr)}<br>`:''} ${custGst?`GSTIN: ${esc(custGst)}<br>`:''} ${custPan?`PAN: ${esc(custPan)}<br>`:''}</div></div>
-      <div class="inv-col"><div class="inv-col-title">Ship To</div><div class="inv-col-body">${shipName?`<b>${esc(shipName)}</b><br>`:''} ${shipAddr?esc(shipAddr):''}</div></div>
-    </div>
-    <table class="inv-table">
-      <tr><th>SI.</th><th>Description</th>${f('unit_price')||S.mapping['unit_price']?'<th>Unit Price</th>':''} ${f('qty')||S.mapping['qty']?'<th>Qty</th>':''} ${f('net_amount')||S.mapping['net_amount']?'<th>Net Amt</th>':''} ${f('tax_type')||f('tax_rate')?'<th>Tax</th>':''} ${f('tax_amount')||S.mapping['tax_amount']?'<th>Tax Amt</th>':''}<th>Total</th></tr>
-      <tr><td>1</td><td>${esc(f('item_desc'))}</td>${f('unit_price')||S.mapping['unit_price']?`<td>${esc(f('unit_price'))}</td>`:''} ${f('qty')||S.mapping['qty']?`<td>${esc(f('qty'))}</td>`:''} ${f('net_amount')||S.mapping['net_amount']?`<td>${esc(f('net_amount'))}</td>`:''} ${f('tax_type')||f('tax_rate')?`<td>${esc(f('tax_type'))} ${esc(f('tax_rate'))}</td>`:''} ${f('tax_amount')||S.mapping['tax_amount']?`<td>${esc(f('tax_amount'))}</td>`:''}<td><b>${esc(f('total'))}</b></td></tr>
-    </table>
-    <table class="inv-totals" style="border-collapse:collapse;">${f('net_amount')?`<tr><td>Net Amount</td><td style="text-align:right;">${esc(f('net_amount'))}</td></tr>`:''} ${f('tax_amount')?`<tr><td>${esc(f('tax_type')||'Tax')} ${esc(f('tax_rate'))}</td><td style="text-align:right;">${esc(f('tax_amount'))}</td></tr>`:''}<tr class="total-row"><td><b>Total</b></td><td style="text-align:right;"><b>${esc(f('total'))}</b></td></tr></table>
-    ${f('amount_words')?`<div class="inv-section"><b>Amount in Words:</b> ${esc(f('amount_words'))}</div>`:''}
-    ${f('notes')?`<div class="inv-section" style="font-size:10px;color:#555;">${esc(f('notes'))}</div>`:''}
-    <div class="inv-footer">
-      <div class="inv-footer-left"><b>Bank / Payment details can go here</b><br>${own&&own.email?`Email: ${esc(own.email)}<br>`:''} ${own&&own.phone?`Phone: ${esc(own.phone)}<br>`:''}</div>
-      <div class="inv-sign"><div class="sig-box"></div><div>${esc(signatory)}</div><div style="color:#888;">Authorised Signatory</div></div>
-    </div>
-  </div>`;
-}
-
-function wireStep4(){
-  const prev=document.getElementById('prevRow'); if(prev) prev.addEventListener('click',()=>{previewRowIdx=Math.max(0,previewRowIdx-1);render();});
-  const next=document.getElementById('nextRow'); if(next) next.addEventListener('click',()=>{previewRowIdx=Math.min(S.dataset.rows.length-1,previewRowIdx+1);render();});
-  const genBtn=document.getElementById('genAllBtn'); if(genBtn) genBtn.addEventListener('click',generateAll);
-  const zipBtn=document.getElementById('zipAllBtn'); if(zipBtn) zipBtn.addEventListener('click',downloadAllZip);
-  const libBtn=document.getElementById('viewLibBtn'); if(libBtn) libBtn.addEventListener('click',()=>{S.savedInvoices=[...S.generated,...S.savedInvoices.filter(s=>!S.generated.find(g=>String(g.id)===String(s.id)))];goto(0);});
-  document.querySelectorAll('[data-dl]').forEach(el=>el.addEventListener('click',()=>{
-    const g=S.generated.find(x=>String(x.id)===el.dataset.row); if(!g) return;
-    triggerDownload(el.dataset.dl==='pdf'?g.pdfBlob:g.docxBlob,el.dataset.dl==='pdf'?g.pdfName:g.docxName);
-  }));
-}
-
-/* ============================================================
-   GENERATION
-   ============================================================ */
-async function generateAll(){
-  S.generated=[];
-  const rows=S.dataset.rows;
-  const progBar=document.getElementById('progBar');
-  const progText=document.getElementById('progText');
-  const own=S.profiles.find(p=>p.isOwn);
-  const genBtn=document.getElementById('genAllBtn');
-  if(genBtn) genBtn.disabled=true;
-
-  for(let i=0;i<rows.length;i++){
-    const row=rows[i];
-    const custProfile=findCustomerProfile(row);
-    const idRaw=getVal(row,S.dataset.uniqueCol)||('INV'+(i+1));
-    const safeId=String(idRaw).replace(/[^a-z0-9_\-]+/gi,'_').slice(0,60);
-    const sourceFile=row.__source||S.dataset.sourceFile||'unknown';
-
-    const pdfBlob=buildPdf(row,own,custProfile);
-    const docxBlob=await buildDocx(row,own,custProfile);
-    const billName=resolveField('bill_name',row)||(custProfile&&custProfile.name)||'';
-    const total=resolveField('total',row)||'';
-
-    const inv={id:idRaw,customer:billName,total,pdfBlob,docxBlob,pdfName:`${safeId}.pdf`,docxName:`${safeId}.docx`,sourceFile,savedAt:Date.now()};
-    S.generated.push(inv);
-
-    // Save to IndexedDB immediately
-    try{ await saveInvoiceToDB(inv); }catch(e){ console.warn('DB save failed:',e); }
-
-    const pct=Math.round(((i+1)/rows.length)*100);
-    if(progBar) progBar.style.width=pct+'%';
-    if(progText) progText.textContent=`${i+1} / ${rows.length} generated & saved`;
-    if(i%5===0) await new Promise(r=>setTimeout(r,0));
-  }
-
-  // Reload saved invoices
-  S.savedInvoices=await loadInvoicesFromDB();
-  toast(`✓ ${rows.length} invoice${rows.length!==1?'s':''} generated and saved to library!`,'good');
-  render();
-}
-
-async function downloadAllZip(){
-  const zip=new JSZip();
-  S.generated.forEach(g=>{if(g.pdfBlob)zip.file(g.pdfName,g.pdfBlob);if(g.docxBlob)zip.file(g.docxName,g.docxBlob);});
-  const blob=await zip.generateAsync({type:'blob'});
-  triggerDownload(blob,`invoices_${Date.now()}.zip`);
-}
-
-/* ── PDF ── */
-function buildPdf(row,own,custProfile){
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm',format:'a4'});
-  const L=15,R=195;
-  let y=18;
-  const f=key=>resolveField(key,row);
-  const cp=custProfile||{};
-  const billName=f('bill_name')||cp.name||'';
-  const billAddr=[f('bill_address')||cp.address,f('bill_city')||cp.city,f('bill_state')||cp.state,f('bill_pin')||cp.pin].filter(Boolean).join(', ');
-  const ownName=own?own.name:'YOUR COMPANY';
-  const ownAddr=own?[own.address,own.city,own.state,own.pin].filter(Boolean).join(', '):'';
-  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(ownName,L,y);
-  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('Tax Invoice',R,y,{align:'right'});
-  y+=7;doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-  if(ownAddr){const ls=doc.splitTextToSize(ownAddr,90);doc.text(ls,L,y);y+=ls.length*4;}
-  if(own&&own.pan){doc.text(`PAN: ${own.pan}`,L,y);y+=4;}
-  if(own&&own.gst){doc.text(`GSTIN: ${own.gst}`,L,y);y+=4;}
-  if(own&&own.cin){doc.text(`CIN: ${own.cin}`,L,y);y+=4;}
-  y+=3;doc.setDrawColor(180);doc.line(L,y,R,y);y+=5;
-  let my=y;doc.setFontSize(9);doc.setFont('helvetica','normal');
-  if(f('inv_number')){doc.text(`Invoice No: ${f('inv_number')}`,R,my,{align:'right'});my+=5;}
-  if(f('inv_date')){doc.text(`Invoice Date: ${f('inv_date')}`,R,my,{align:'right'});my+=5;}
-  if(f('order_date')){doc.text(`Order Date: ${f('order_date')}`,R,my,{align:'right'});my+=5;}
-  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('BILL TO',L,y);doc.text('SHIP TO',110,y);
-  y+=5;doc.setFont('helvetica','normal');
-  let ly=y,ry=y;
-  if(billName){doc.setFont('helvetica','bold');doc.text(billName,L,ly);doc.setFont('helvetica','normal');ly+=4.5;}
-  if(billAddr){const ls=doc.splitTextToSize(billAddr,85);doc.text(ls,L,ly);ly+=ls.length*4.2;}
-  if(cp.gst){doc.text(`GSTIN: ${cp.gst}`,L,ly);ly+=4.2;}
-  if(cp.pan){doc.text(`PAN: ${cp.pan}`,L,ly);ly+=4.2;}
-  const shipAddr=[f('ship_address')||billAddr].filter(Boolean).join(', ');
-  if(f('ship_name')||billName){doc.setFont('helvetica','bold');doc.text(f('ship_name')||billName,110,ry);doc.setFont('helvetica','normal');ry+=4.5;}
-  if(shipAddr){const ls=doc.splitTextToSize(shipAddr,82);doc.text(ls,110,ry);ry+=ls.length*4.2;}
-  y=Math.max(ly,ry)+6;
-  doc.autoTable({startY:y,head:[['SI.','Description','Price','Qty','Net','Tax','Tax Amt','Total']],body:[['1',f('item_desc'),f('unit_price'),f('qty'),f('net_amount'),[f('tax_type'),f('tax_rate')].filter(Boolean).join(' '),f('tax_amount'),f('total')]],margin:{left:L,right:15},styles:{fontSize:8.5},headStyles:{fillColor:[240,240,240],textColor:30}});
-  y=doc.lastAutoTable.finalY+5;
-  if(f('net_amount')){doc.setFontSize(9);doc.text(`Net Amount: ${f('net_amount')}`,R,y,{align:'right'});y+=5;}
-  if(f('tax_amount')){doc.text(`${f('tax_type')||'Tax'} ${f('tax_rate')}: ${f('tax_amount')}`,R,y,{align:'right'});y+=5;}
-  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`Total: ${f('total')}`,R,y,{align:'right'});y+=6;
-  doc.setFont('helvetica','normal');
-  if(f('amount_words')){doc.setFontSize(8.5);doc.text(`Amount in Words: ${f('amount_words')}`,L,y);y+=5;}
-  if(f('notes')){const ls=doc.splitTextToSize(f('notes'),180);doc.setFontSize(8);doc.text(ls,L,y);y+=ls.length*4+2;}
-  doc.setDrawColor(180);doc.line(L,y,R,y);y+=5;
-  doc.setFontSize(8);doc.setFont('helvetica','normal');
-  if(own&&own.email){doc.text(`Email: ${own.email}`,L,y);y+=4;}
-  if(own&&own.phone){doc.text(`Phone: ${own.phone}`,L,y);}
-  const signatory=own?(own.signatory||`For ${own.name}`):'Authorised Signatory';
-  doc.text(signatory,R,doc.internal.pageSize.height-20,{align:'right'});
-  doc.text('Authorised Signatory',R,doc.internal.pageSize.height-15,{align:'right'});
-  return doc.output('blob');
-}
-
-/* ── DOCX ── */
-function wP(text,opts={}){
-  const bold=opts.bold?'<w:b/>':'';const sz=opts.size?`<w:sz w:val="${opts.size*2}"/>`:'';const align=opts.align?`<w:jc w:val="${opts.align}"/>`:'';
-  const rpr=(bold||sz)?`<w:rPr>${bold}${sz}</w:rPr>`:'';
-  return String(text||'').split('\n').map(line=>`<w:p>${align?`<w:pPr>${align}</w:pPr>`:''}<w:r>${rpr}<w:t xml:space="preserve">${escXml(line)}</w:t></w:r></w:p>`).join('');
-}
-function escXml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function wTR(cells,opts={}){return`<w:tr>${cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c,opts)}</w:tc>`).join('')}</w:tr>`;}
-function wTable(rowsXml){const borders=`<w:tblBorders><w:top w:val="single" w:sz="4" w:color="BBBBBB"/><w:left w:val="single" w:sz="4" w:color="BBBBBB"/><w:bottom w:val="single" w:sz="4" w:color="BBBBBB"/><w:right w:val="single" w:sz="4" w:color="BBBBBB"/><w:insideH w:val="single" w:sz="4" w:color="BBBBBB"/><w:insideV w:val="single" w:sz="4" w:color="BBBBBB"/></w:tblBorders>`;return`<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${borders}</w:tblPr>${rowsXml}</w:tbl>`;}
-
-async function buildDocx(row,own,custProfile){
-  const f=key=>resolveField(key,row);const cp=custProfile||{};
-  const billName=f('bill_name')||cp.name||'';
-  const billAddr=[f('bill_address')||cp.address,f('bill_city')||cp.city,f('bill_state')||cp.state,f('bill_pin')||cp.pin].filter(Boolean).join(', ');
-  const ownName=own?own.name:'YOUR COMPANY';const signatory=own?(own.signatory||`For ${own.name}`):'Authorised Signatory';
-  let body='';
-  body+=wP(ownName,{bold:true,size:14});
-  if(own&&own.address) body+=wP([own.address,own.city,own.state,own.pin].filter(Boolean).join(', '),{size:9});
-  if(own&&own.pan) body+=wP(`PAN: ${own.pan}`,{size:9});if(own&&own.gst) body+=wP(`GSTIN: ${own.gst}`,{size:9});if(own&&own.cin) body+=wP(`CIN: ${own.cin}`,{size:9});
-  body+=wP('');body+=wP('TAX INVOICE',{bold:true,size:14,align:'center'});body+=wP('');
-  body+=wTable(wTR(['Invoice No: '+f('inv_number'),'Invoice Date: '+f('inv_date')],{size:9})+(f('order_date')?wTR(['Order Date: '+f('order_date'),''],{size:9}):''));
-  body+=wP('');
-  body+=wTable(wTR(['BILL TO','SHIP TO'],{bold:true,size:9})+wTR([[billName,billAddr,cp.gst?`GSTIN: ${cp.gst}`:'',cp.pan?`PAN: ${cp.pan}`:''].filter(Boolean).join('\n'),[f('ship_name')||billName,f('ship_address')||billAddr].filter(Boolean).join('\n')],{size:9}));
-  body+=wP('');
-  body+=wTable(wTR(['SI.','Description','Unit Price','Qty','Net Amount','Tax','Tax Amt','Total'],{bold:true,size:9})+wTR(['1',f('item_desc'),f('unit_price'),f('qty'),f('net_amount'),[f('tax_type'),f('tax_rate')].filter(Boolean).join(' '),f('tax_amount'),f('total')],{size:9}));
-  body+=wP('');
-  if(f('net_amount')) body+=wP('Net Amount: '+f('net_amount'),{align:'right',size:9});
-  if(f('tax_amount')) body+=wP(`${f('tax_type')||'Tax'} ${f('tax_rate')}: ${f('tax_amount')}`,{align:'right',size:9});
-  body+=wP('Total: '+f('total'),{bold:true,align:'right',size:11});
-  if(f('amount_words')) body+=wP('Amount in Words: '+f('amount_words'),{size:9});if(f('notes')) body+=wP('Notes: '+f('notes'),{size:9});
-  body+=wP('');body+=wP(signatory,{align:'right',size:9});body+=wP('Authorised Signatory',{align:'right',size:9});
-  const zip=new JSZip();
-  zip.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
-  zip.folder('_rels').file('.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
-  zip.folder('word').file('document.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`);
-  return zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-}
-
-/* ============================================================
+/* ═══════════════════════════════════════════════
    BOOT
-   ============================================================ */
-async function boot(){
-  try{
+═══════════════════════════════════════════════ */
+async function boot() {
+  try {
     await openDB();
-    S.savedInvoices=await loadInvoicesFromDB();
-  }catch(e){
-    console.warn('IndexedDB unavailable, storage disabled:',e);
-    // App still works, just without persistence
+    S.savedInvoices = await loadInvoices();
+
+    // Load persisted settings
+    const companyRec = await dbGet('settings','company');
+    if(companyRec) S.company = JSON.parse(companyRec.value);
+
+    const profilesRec = await dbGet('settings','profiles');
+    if(profilesRec) S.profiles = JSON.parse(profilesRec.value);
+
+  } catch(e) {
+    console.warn('IndexedDB unavailable:', e);
   }
-  goto(S.savedInvoices.length>0?0:1);
+
+  // Start on Settings if company not set, else Invoices
+  goto(S.company ? 'invoices' : 'settings');
 }
+
 boot();
 </script>
 </body>
