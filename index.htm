@@ -206,7 +206,7 @@ table.inv-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-s
 table.inv-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 9.5px; }
 table.inv-table td { border: 1px solid #ddd; padding: 7px 8px; vertical-align: top; }
 table.inv-table tr:nth-child(even) td { background: #fafafa; }
-.inv-totals { margin-left: auto; width: 240px; border-collapse: collapse; margin-top: 6px; }
+.inv-totals { margin-left: auto; width: 280px; border-collapse: collapse; margin-top: 6px; }
 .inv-totals td { padding: 4px 8px; font-size: 10px; border: none; }
 .inv-totals .total-final td { font-weight: 800; font-size: 12px; border-top: 2px solid #111; padding-top: 6px; }
 .inv-words { font-size: 10.5px; background: #f9f9f9; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; margin: 8px 0; }
@@ -251,7 +251,6 @@ table.inv-table tr:nth-child(even) td { background: #fafafa; }
 .empty h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
 .empty p { font-size: 13px; }
 
-/* ── LOGO UPLOAD ZONE in edit modal ── */
 .logo-upload-zone {
   width: 100%; height: 60px;
   border: 1.5px dashed var(--border2); border-radius: 8px;
@@ -275,7 +274,6 @@ table.inv-table tr:nth-child(even) td { background: #fafafa; }
       <div class="logo-mark">Fidy<span>Invoice</span></div>
       <div class="logo-sub">Settlement Generator</div>
     </div>
-
     <div class="nav-item active" data-page="invoices">
       <span class="nav-icon">🧾</span> Generate Invoices
     </div>
@@ -291,13 +289,11 @@ table.inv-table tr:nth-child(even) td { background: #fafafa; }
     <div class="nav-item" data-page="settings">
       <span class="nav-icon">⚙️</span> Seller Setup
     </div>
-
     <div class="sidebar-foot">
       Runs entirely in your browser.<br>
       Data saved on this device.
     </div>
   </aside>
-
   <main class="main" id="mainArea"></main>
 </div>
 
@@ -373,6 +369,62 @@ const cleanNum = v => {
   return isNaN(n) ? 0 : n;
 };
 const fmtINR = n => '₹'+cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ═══════════════════════════════════════════════
+   GST CALCULATION ENGINE
+   Total = finalAmount (never changes)
+   Base  = Total / (1 + rate/100)
+   Tax   = Total - Base
+   Same state → CGST + SGST (half each)
+   Diff state → IGST (full)
+═══════════════════════════════════════════════ */
+function calcGST(totalAmount, gstRate, sellerState, buyerState) {
+  const rate = cleanNum(gstRate) || 18;
+  const total = cleanNum(totalAmount);
+  const base  = parseFloat((total / (1 + rate / 100)).toFixed(2));
+  const tax   = parseFloat((total - base).toFixed(2));
+
+  // Normalise state names for comparison
+  const sA = (sellerState || '').toLowerCase().trim();
+  const sB = (buyerState  || '').toLowerCase().trim();
+  const sameState = sA && sB && sA === sB;
+
+  if (sameState) {
+    const half = parseFloat((tax / 2).toFixed(2));
+    return {
+      base, total, rate,
+      taxType : 'CGST+SGST',
+      cgst    : half,
+      sgst    : half,
+      igst    : 0,
+      taxLabel: `CGST ${rate/2}% + SGST ${rate/2}%`,
+      taxAmt  : tax,
+      isSame  : true,
+    };
+  } else {
+    return {
+      base, total, rate,
+      taxType : 'IGST',
+      cgst    : 0,
+      sgst    : 0,
+      igst    : tax,
+      taxLabel: `IGST ${rate}%`,
+      taxAmt  : tax,
+      isSame  : false,
+    };
+  }
+}
+
+/* Get GST info for a row given current state & profile */
+function getGSTInfo(row, profile) {
+  const co      = S.company || {};
+  const p       = profile   || {};
+  const rate    = cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18);
+  const total   = cleanNum(row['Transaction Amount']);
+  const sellState = co.state   || '';
+  const buyState  = row['_billState'] || p.state || '';
+  return calcGST(total, rate, sellState, buyState);
+}
 
 function triggerDL(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -457,9 +509,9 @@ function updateBadges() {
 ═══════════════════════════════════════════════ */
 function viewInvoices() {
   const rows = S.rows;
-  const gen = S.generated;
+  const gen  = S.generated;
   const totalAmt = rows.reduce((s,r)=>s+cleanNum(r['Transaction Amount']),0);
-  const sellers = [...new Set(rows.map(r=>r['Seller Name']))].filter(Boolean);
+  const sellers  = [...new Set(rows.map(r=>r['Seller Name']))].filter(Boolean);
 
   return `
   <div style="margin-bottom:24px;">
@@ -469,9 +521,16 @@ function viewInvoices() {
 
   ${!S.company ? `
   <div class="note warn" style="margin-bottom:18px;">
-    ⚠️ <b>Your company details are not set.</b> 
+    ⚠️ <b>Your company details are not set.</b>
     <span style="cursor:pointer;text-decoration:underline;color:var(--amber);" onclick="goto('settings')">Set up your company →</span>
-    (needed for the "Sold By" section on each invoice)
+    (needed for GST calculation and "Sold By" section)
+  </div>` : ''}
+
+  ${S.company && !S.company.state ? `
+  <div class="note warn" style="margin-bottom:18px;">
+    ⚠️ <b>Your company state is not set.</b>
+    <span style="cursor:pointer;text-decoration:underline;color:var(--amber);" onclick="goto('settings')">Set company state →</span>
+    (needed to determine IGST vs CGST+SGST)
   </div>` : ''}
 
   <div class="card">
@@ -511,6 +570,7 @@ function viewInvoices() {
             <th>UTR Number</th>
             <th>Transaction Date</th>
             <th>Amount</th>
+            <th>GST</th>
             <th>Type</th>
             <th>Preview</th>
           </tr>
@@ -518,6 +578,8 @@ function viewInvoices() {
         <tbody>
           ${rows.map((r,i) => {
             const hasProfile = S.profiles.find(p => matchProfile(p, r['Seller Name']));
+            const profile    = hasProfile;
+            const gst        = getGSTInfo(r, profile);
             return `<tr>
               <td style="color:var(--dim);font-size:11px;">${i+1}</td>
               <td>
@@ -528,6 +590,10 @@ function viewInvoices() {
               <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Transaction UTR Number']||'')}</td>
               <td style="font-size:12px;">${esc(parseDate(r['Transaction Date']))}</td>
               <td style="font-weight:700;color:var(--green);">${fmtINR(r['Transaction Amount']||0)}</td>
+              <td style="font-size:11px;">
+                <span class="badge ${gst.isSame ? 'badge-blue' : 'badge-amber'}" style="font-size:10px;">${gst.taxLabel}</span><br>
+                <span style="color:var(--muted);font-size:10px;">Tax: ${fmtINR(gst.taxAmt)}</span>
+              </td>
               <td><span class="badge badge-blue" style="font-size:10px;">${esc(r['Transaction Type']||'')}</span></td>
               <td>
                 <div class="row" style="gap:4px;">
@@ -586,7 +652,7 @@ function viewInvoices() {
 
 function wireInvoices() {
   const drop = document.getElementById('dropZone');
-  const inp = document.getElementById('fileInput');
+  const inp  = document.getElementById('fileInput');
   if(drop) {
     drop.addEventListener('click', () => inp.click());
     ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
@@ -594,7 +660,6 @@ function wireInvoices() {
     drop.addEventListener('drop', e => { if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
     inp.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
   }
-
   document.getElementById('clearDataBtn')?.addEventListener('click', () => { S.rows=[]; S.generated=[]; render(); });
   document.getElementById('genAllBtn')?.addEventListener('click', generateAll);
   document.getElementById('zipAllBtn')?.addEventListener('click', downloadZip);
@@ -606,7 +671,6 @@ function wireInvoices() {
   document.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => showEditModal(+btn.dataset.edit));
   });
-
   document.querySelectorAll('[data-dl-pdf]').forEach(btn => {
     btn.addEventListener('click', () => {
       const g = S.generated.find(x=>x.id===btn.dataset.dlPdf);
@@ -632,8 +696,8 @@ function handleFile(file) {
   reader.onload = e => {
     try {
       const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type:'array', cellDates:true, raw:true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
+      const wb   = XLSX.read(data, { type:'array', cellDates:true, raw:true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
       if(!json.length) throw new Error('No rows found in file');
       S.rows = json;
@@ -652,38 +716,33 @@ function handleFile(file) {
 ═══════════════════════════════════════════════ */
 async function generateAll() {
   S.generated = [];
-  const btn = document.getElementById('genAllBtn');
+  const btn  = document.getElementById('genAllBtn');
   const prog = document.getElementById('genProgress');
-  const bar = document.getElementById('genBar');
-  const txt = document.getElementById('genText');
+  const bar  = document.getElementById('genBar');
+  const txt  = document.getElementById('genText');
   if(btn) btn.disabled = true;
   if(prog) prog.style.display = 'block';
 
   for(let i=0; i<S.rows.length; i++) {
-    const row = S.rows[i];
+    const row     = S.rows[i];
     const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-    const invNum = genInvNum(row);
-    const amount = cleanNum(row['Transaction Amount']);
+    const invNum  = genInvNum(row);
+    const amount  = cleanNum(row['Transaction Amount']);
 
-    const pdfBlob = buildPDF(row, profile, invNum);
+    const pdfBlob  = buildPDF(row, profile, invNum);
     const docxBlob = await buildDOCX(row, profile, invNum);
 
     const g = {
-      id: uid(),
-      invNum,
-      merchant: row['Seller Name']||'Unknown',
-      amount,
-      utr: row['Transaction UTR Number']||'',
+      id: uid(), invNum,
+      merchant   : row['Seller Name']||'Unknown',
+      amount, utr: row['Transaction UTR Number']||'',
       settlementId: row['Seller Settlement Records ID']||'',
-      savedAt: Date.now(),
-      pdfBlob,
-      docxBlob,
-      _row: row,
+      savedAt: Date.now(), pdfBlob, docxBlob, _row: row,
     };
     S.generated.push(g);
 
     try {
-      const pdfB64 = await b64(pdfBlob);
+      const pdfB64  = await b64(pdfBlob);
       const docxB64 = await b64(docxBlob);
       await dbPut('invoices', { ...g, pdfB64, docxB64, pdfBlob:undefined, docxBlob:undefined, _row:undefined });
     } catch(e) { console.warn('DB save failed:', e); }
@@ -711,55 +770,55 @@ async function downloadZip() {
 }
 
 /* ═══════════════════════════════════════════════
-   INVOICE HTML
+   INVOICE HTML (with real GST rows)
 ═══════════════════════════════════════════════ */
 function buildInvoiceHTML(row, profile, invNum) {
-  const co = S.company || {};
-  const p = profile || {};
-  const amount = cleanNum(row['Transaction Amount']);
+  const co  = S.company || {};
+  const p   = profile   || {};
   if(row['_invNum']) invNum = row['_invNum'];
-  const taxRate = co.taxRate || 18;
-  const taxType = co.taxType || 'IGST';
-  const netAmount = amount;
-  const taxAmount = 0;
-  const total = amount;
-  const words = numWords(total);
 
+  const merchantName  = row['_billName']    || row['Seller Name'] || p.name  || '';
+  const merchantAddr  = row['_billAddress'] || p.address || '';
+  const merchantCity  = row['_billCity']    || p.city    || '';
+  const merchantState = row['_billState']   || p.state   || '';
+  const merchantPin   = row['_billPin']     || p.pin     || '';
+  const merchantGST   = row['_billGST']     || p.gst     || '';
+  const merchantPAN   = row['_billPAN']     || p.pan     || '';
+  const fullBillAddr  = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+
+  const gst     = getGSTInfo(row, profile);
+  const words   = numWords(gst.total);
   const invDate = parseDate(new Date());
-  const txDate = parseDate(row['Transaction Date']);
-  const sellerId = row['Seller ID']||'';
-  const utr = row['Transaction UTR Number']||'';
-  const txRef = row['Transaction Reference Number']||'';
-  const txType = row['Transaction Type']||'COLLECTION';
-  const settlementRecId = row['Seller Settlement Records ID']||'';
+  const txDate  = parseDate(row['Transaction Date']);
+  const utr     = row['Transaction UTR Number'] || '';
+  const txRef   = row['Transaction Reference Number'] || '';
+  const txType  = row['Transaction Type'] || 'COLLECTION';
+  const settlementRecId = row['Seller Settlement Records ID'] || '';
 
-  const merchantName = row['_billName'] || row['Seller Name'] || p.name || '';
-  const merchantAddr = row['_billAddress'] || p.address||'';
-  const merchantCity = row['_billCity']   || p.city||'';
-  const merchantState= row['_billState']  || p.state||'';
-  const merchantPin  = row['_billPin']    || p.pin||'';
-  const merchantGST  = row['_billGST']   || p.gst||'';
-  const merchantPAN  = row['_billPAN']   || p.pan||'';
-  const fullBillAddr = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+  const coName      = co.name      || '';
+  const coAddr      = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPAN       = co.pan       || '';
+  const coGST       = co.gst       || '';
+  const coCIN       = co.cin       || '';
+  const coSignatory = co.signatory || 'Authorised Signatory';
+  const coDesig     = co.designation || 'Director';
+  const logoB64     = row['_logoB64'] || co.logoB64 || null;
 
-  const coName = co.name || '';
-  const coAddr = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const coPAN = co.pan||'';
-  const coGST = co.gst||'';
-  const coCIN = co.cin||'';
-  const coSignatory = co.signatory||`Authorised Signatory`;
-  const coDesignation = co.designation||'Director';
-  // Use row-level logo override if set, else company logo
-  const logoB64 = row['_logoB64'] || co.logoB64 || null;
+  // Build totals summary rows
+  const totalsRows = gst.isSame
+    ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+       <tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
+       <tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
+    : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+       <tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
 
   return `<div class="inv-paper">
     <div class="inv-top">
-      <div class="inv-title-block">
-        <h2>Tax Invoice</h2>
-        <p>(Original for Recipient)</p>
-      </div>
+      <div class="inv-title-block"><h2>Tax Invoice</h2><p>(Original for Recipient)</p></div>
       <div class="inv-logo">
-        ${logoB64 ? `<img src="${logoB64}" style="max-height:52px;max-width:180px;object-fit:contain;" alt="logo">` : `<span style="font-size:22px;font-weight:900;">${esc(coName)}</span>`}
+        ${logoB64
+          ? `<img src="${logoB64}" style="max-height:52px;max-width:180px;object-fit:contain;" alt="logo">`
+          : `<span style="font-size:22px;font-weight:900;">${esc(coName)}</span>`}
       </div>
     </div>
     <hr class="inv-rule">
@@ -767,7 +826,7 @@ function buildInvoiceHTML(row, profile, invNum) {
       <div><b>Invoice Number:</b> ${esc(invNum)}</div>
       <div><b>Invoice Date:</b> ${esc(invDate)}</div>
       <div><b>Transaction Date:</b> ${esc(txDate)}</div>
-      <div><b>Seller ID:</b> ${esc(sellerId)}</div>
+      <div><b>Seller ID:</b> ${esc(row['Seller ID']||'')}</div>
     </div>
     <div class="inv-addr-row">
       <div class="inv-addr-col">
@@ -790,8 +849,9 @@ function buildInvoiceHTML(row, profile, invNum) {
     <table class="inv-table">
       <thead>
         <tr>
-          <th>SI.No</th><th>Description</th><th>UTR Number</th><th>Unit Price</th>
-          <th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
+          <th>SI.No</th><th>Description</th><th>UTR Number</th>
+          <th>Unit Price</th><th>QTY</th><th>Net Amount</th>
+          <th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -802,24 +862,26 @@ function buildInvoiceHTML(row, profile, invNum) {
             <span style="color:#666;font-size:9px;">Ref: ${esc(txRef)}</span>
           </td>
           <td style="font-family:monospace;font-size:9px;">${esc(utr)}</td>
-          <td style="text-align:right;">${fmtINR(netAmount)}</td>
+          <td style="text-align:right;">${fmtINR(gst.base)}</td>
           <td style="text-align:center;">1</td>
-          <td style="text-align:right;">${fmtINR(netAmount)}</td>
-          <td style="text-align:center;">—</td><td style="text-align:center;">—</td><td style="text-align:right;">—</td>
-          <td style="text-align:right;font-weight:700;">${fmtINR(total)}</td>
+          <td style="text-align:right;">${fmtINR(gst.base)}</td>
+          <td style="text-align:center;">${gst.rate}%</td>
+          <td style="text-align:center;">${gst.taxType}</td>
+          <td style="text-align:right;">${fmtINR(gst.taxAmt)}</td>
+          <td style="text-align:right;font-weight:700;">${fmtINR(gst.total)}</td>
         </tr>
       </tbody>
       <tfoot>
         <tr>
           <td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
-          <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(total)}</td>
+          <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td>
         </tr>
       </tfoot>
     </table>
     <div style="display:flex;justify-content:flex-end;">
       <table class="inv-totals">
-        <tr><td>Net Amount</td><td style="text-align:right;">${fmtINR(netAmount)}</td></tr>
-        <tr class="total-final"><td>Total</td><td style="text-align:right;">${fmtINR(total)}</td></tr>
+        ${totalsRows}
+        <tr class="total-final"><td><b>Total</b></td><td style="text-align:right;"><b>${fmtINR(gst.total)}</b></td></tr>
       </table>
     </div>
     <div class="inv-words"><b>Amount in Words:</b> ${esc(words)}</div>
@@ -838,44 +900,44 @@ function buildInvoiceHTML(row, profile, invNum) {
         <div class="sig-line"></div>
         ${coName ? `<div class="sig-name">For ${esc(coName)}</div>` : ''}
         <div style="color:#888;">${esc(coSignatory)}</div>
-        <div>${esc(coDesignation)}</div>
+        <div>${esc(coDesig)}</div>
       </div>
     </div>
   </div>`;
 }
 
 /* ═══════════════════════════════════════════════
-   EDIT INVOICE MODAL — with Logo Upload
+   EDIT INVOICE MODAL
 ═══════════════════════════════════════════════ */
 function showEditModal(rowIdx) {
-  const row = S.rows[rowIdx];
+  const row     = S.rows[rowIdx];
   if(!row) return;
   const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-  const invNum = genInvNum(row);
+  const invNum  = genInvNum(row);
+  const co      = S.company || {};
 
   const edits = {
     invNum,
-    sellerName:   row['Seller Name']||'',
-    sellerId:     String(row['Seller ID']||''),
-    settlementId: String(row['Seller Settlement Records ID']||''),
-    utr:          String(row['Transaction UTR Number']||''),
-    txRef:        String(row['Transaction Reference Number']||''),
-    txDate:       parseDate(row['Transaction Date']),
-    txType:       row['Transaction Type']||'COLLECTION',
-    amount:       cleanNum(row['Transaction Amount']),
-    description:  row['_description']||'',
-    billName:     (profile&&profile.name)||row['Seller Name']||'',
-    billAddress:  (profile&&profile.address)||'',
-    billCity:     (profile&&profile.city)||'',
-    billState:    (profile&&profile.state)||'',
-    billPin:      (profile&&profile.pin)||'',
-    billGST:      (profile&&profile.gst)||'',
-    billPAN:      (profile&&profile.pan)||'',
-    // Logo: start with row-level override, else company logo
-    logoB64:      row['_logoB64'] || (S.company && S.company.logoB64) || null,
+    sellerName   : row['Seller Name']||'',
+    sellerId     : String(row['Seller ID']||''),
+    settlementId : String(row['Seller Settlement Records ID']||''),
+    utr          : String(row['Transaction UTR Number']||''),
+    txRef        : String(row['Transaction Reference Number']||''),
+    txDate       : parseDate(row['Transaction Date']),
+    txType       : row['Transaction Type']||'COLLECTION',
+    amount       : cleanNum(row['Transaction Amount']),
+    description  : row['_description']||'',
+    gstRate      : cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18),
+    billName     : row['_billName']    || (profile&&profile.name)    || row['Seller Name'] || '',
+    billAddress  : row['_billAddress'] || (profile&&profile.address) || '',
+    billCity     : row['_billCity']    || (profile&&profile.city)    || '',
+    billState    : row['_billState']   || (profile&&profile.state)   || '',
+    billPin      : row['_billPin']     || (profile&&profile.pin)     || '',
+    billGST      : row['_billGST']     || (profile&&profile.gst)     || '',
+    billPAN      : row['_billPAN']     || (profile&&profile.pan)     || '',
+    logoB64      : row['_logoB64'] || co.logoB64 || null,
   };
 
-  // Helper to render logo preview markup
   const logoPreviewHTML = (src) => src
     ? `<img src="${src}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`
     : `<span class="logo-placeholder">No logo — click Upload</span>`;
@@ -887,37 +949,48 @@ function showEditModal(rowIdx) {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:1100px;max-width:100%;padding:0;display:flex;max-height:96vh;overflow:hidden;">
 
       <!-- LEFT: EDIT PANEL -->
-      <div style="width:340px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:20px;">
+      <div style="width:360px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:20px;">
         <div style="font-weight:700;font-size:15px;margin-bottom:4px;">✏️ Edit Invoice</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:18px;">Changes update the preview in real time.</div>
 
-        <!-- ── LOGO UPLOAD SECTION ── -->
+        <!-- LOGO -->
         <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">🖼 Company Logo</div>
-
-          <!-- Preview box -->
-          <div class="logo-upload-zone" id="ef_logoPreview" style="margin-bottom:8px;cursor:pointer;" title="Click to upload logo">
+          <div class="logo-upload-zone" id="ef_logoPreview" style="margin-bottom:8px;cursor:pointer;">
             ${logoPreviewHTML(edits.logoB64)}
           </div>
-
-          <!-- Buttons row -->
           <div style="display:flex;gap:6px;">
             <label class="btn btn-ghost btn-xs" style="cursor:pointer;flex:1;justify-content:center;">
               📁 Upload Logo
               <input type="file" id="ef_logoInput" accept="image/png,image/jpeg,image/jpg,image/svg+xml" style="display:none;">
             </label>
-            <button class="btn btn-danger btn-xs" id="ef_removeLogoBtn" title="Remove logo from this invoice">✕ Remove</button>
+            <button class="btn btn-danger btn-xs" id="ef_removeLogoBtn">✕ Remove</button>
           </div>
           <div style="font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5;">
             PNG / JPG / SVG · max 500 KB<br>
-            Updates this invoice only. To change globally, go to <span style="color:var(--accent);cursor:pointer;" id="ef_goSettings">Seller Setup →</span>
+            To change globally → <span style="color:var(--accent);cursor:pointer;" id="ef_goSettings">Seller Setup →</span>
           </div>
         </div>
-        <!-- ── END LOGO SECTION ── -->
 
         <div class="field"><label>Invoice Number</label><input type="text" id="ef_invNum" value="${esc(edits.invNum)}"></div>
         <div class="field"><label>Transaction Date</label><input type="text" id="ef_txDate" value="${esc(edits.txDate)}"></div>
-        <div class="field"><label>Transaction Amount (₹)</label><input type="number" id="ef_amount" value="${edits.amount}" min="0" step="0.01"></div>
+        <div class="field"><label>Transaction Amount ₹ (Final Total)</label><input type="number" id="ef_amount" value="${edits.amount}" min="0" step="0.01"></div>
+
+        <!-- GST RATE -->
+        <div class="field">
+          <label>GST Rate % <span style="color:var(--dim);font-weight:400;">(GST is reverse-calculated from total)</span></label>
+          <select id="ef_gstRate">
+            <option value="0"  ${edits.gstRate==0 ?'selected':''}>0% — Exempt</option>
+            <option value="5"  ${edits.gstRate==5 ?'selected':''}>5%</option>
+            <option value="12" ${edits.gstRate==12?'selected':''}>12%</option>
+            <option value="18" ${edits.gstRate==18?'selected':''}>18%</option>
+            <option value="28" ${edits.gstRate==28?'selected':''}>28%</option>
+          </select>
+        </div>
+
+        <!-- GST preview chip -->
+        <div id="ef_gstChip" style="margin-bottom:12px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:11px;line-height:1.7;"></div>
+
         <div class="field"><label>Description (overrides auto)</label><input type="text" id="ef_description" value="${esc(edits.description)}" placeholder="e.g. Settlement payment for order #1234"></div>
         <div class="field"><label>UTR Number</label><input type="text" id="ef_utr" value="${esc(edits.utr)}"></div>
         <div class="field"><label>Transaction Ref</label><input type="text" id="ef_txRef" value="${esc(edits.txRef)}"></div>
@@ -927,10 +1000,13 @@ function showEditModal(rowIdx) {
         <div class="field"><label>Merchant Name</label><input type="text" id="ef_billName" value="${esc(edits.billName)}"></div>
         <div class="field"><label>Address</label><input type="text" id="ef_billAddress" value="${esc(edits.billAddress)}"></div>
         <div class="field"><label>City</label><input type="text" id="ef_billCity" value="${esc(edits.billCity)}"></div>
-        <div class="field"><label>State</label><input type="text" id="ef_billState" value="${esc(edits.billState)}"></div>
+        <div class="field">
+          <label>State <span style="color:var(--dim);font-weight:400;">(determines IGST vs CGST+SGST)</span></label>
+          <input type="text" id="ef_billState" value="${esc(edits.billState)}" placeholder="e.g. Maharashtra">
+        </div>
         <div class="field"><label>PIN</label><input type="text" id="ef_billPin" value="${esc(edits.billPin)}"></div>
-        <div class="field"><label>GST</label><input type="text" id="ef_billGST" value="${esc(edits.billGST)}"></div>
-        <div class="field"><label>PAN</label><input type="text" id="ef_billPAN" value="${esc(edits.billPAN)}"></div>
+        <div class="field"><label>GST Number</label><input type="text" id="ef_billGST" value="${esc(edits.billGST)}"></div>
+        <div class="field"><label>PAN Number</label><input type="text" id="ef_billPAN" value="${esc(edits.billPAN)}"></div>
 
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
           <button class="btn btn-primary" id="ef_applyBtn">Apply to Row &amp; Generate PDF</button>
@@ -947,10 +1023,31 @@ function showEditModal(rowIdx) {
 
   document.body.appendChild(bg);
 
-  const previewArea = bg.querySelector('#editPreviewArea');
-  const refreshPreview = () => { previewArea.innerHTML = buildInvoiceHTMLFromEdits(edits); };
+  const previewArea  = bg.querySelector('#editPreviewArea');
+  const gstChip      = bg.querySelector('#ef_gstChip');
 
-  // Text fields — live update
+  function updateGSTChip() {
+    const g = calcGST(edits.amount, edits.gstRate, (S.company||{}).state, edits.billState);
+    gstChip.innerHTML = g.isSame
+      ? `🏠 <b>Same State</b> → CGST + SGST<br>
+         Base: <b>${fmtINR(g.base)}</b> &nbsp;|&nbsp;
+         CGST ${g.rate/2}%: <b>${fmtINR(g.cgst)}</b> &nbsp;|&nbsp;
+         SGST ${g.rate/2}%: <b>${fmtINR(g.sgst)}</b><br>
+         Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`
+      : `🚀 <b>Inter-State</b> → IGST<br>
+         Base: <b>${fmtINR(g.base)}</b> &nbsp;|&nbsp;
+         IGST ${g.rate}%: <b>${fmtINR(g.igst)}</b><br>
+         Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`;
+  }
+
+  const refreshPreview = () => {
+    updateGSTChip();
+    previewArea.innerHTML = buildInvoiceHTMLFromEdits(edits);
+  };
+
+  updateGSTChip();
+
+  // Text fields
   const textFields = ['invNum','txDate','amount','description','utr','txRef','billName','billAddress','billCity','billState','billPin','billGST','billPAN'];
   textFields.forEach(f => {
     const el = bg.querySelector('#ef_'+f);
@@ -960,13 +1057,16 @@ function showEditModal(rowIdx) {
     });
   });
 
-  // ── LOGO: Upload ──
-  const logoInput = bg.querySelector('#ef_logoInput');
-  const logoPreviewEl = bg.querySelector('#ef_logoPreview');
+  // GST rate dropdown
+  bg.querySelector('#ef_gstRate').addEventListener('change', e => {
+    edits.gstRate = cleanNum(e.target.value);
+    refreshPreview();
+  });
 
-  // Clicking the preview zone also triggers upload
+  // Logo upload
+  const logoInput    = bg.querySelector('#ef_logoInput');
+  const logoPreviewEl= bg.querySelector('#ef_logoPreview');
   logoPreviewEl.addEventListener('click', () => logoInput.click());
-
   logoInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -976,60 +1076,48 @@ function showEditModal(rowIdx) {
       edits.logoB64 = ev.target.result;
       logoPreviewEl.innerHTML = `<img src="${edits.logoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
       refreshPreview();
-      toast('Logo uploaded — preview updated.', 'good');
+      toast('Logo uploaded.', 'good');
     };
     reader.readAsDataURL(file);
   });
-
-  // ── LOGO: Remove ──
   bg.querySelector('#ef_removeLogoBtn').addEventListener('click', () => {
     edits.logoB64 = null;
     logoPreviewEl.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
     refreshPreview();
-    toast('Logo removed from this invoice.', '');
   });
 
-  // ── Go to Seller Setup ──
   bg.querySelector('#ef_goSettings')?.addEventListener('click', () => { bg.remove(); goto('settings'); });
 
-  // ── Apply ──
+  // Apply
   bg.querySelector('#ef_applyBtn').addEventListener('click', () => {
-    // Collect latest text field values
     textFields.forEach(f => {
       const inp = bg.querySelector('#ef_'+f);
       if(inp) edits[f] = f==='amount' ? cleanNum(inp.value) : inp.value;
     });
+    edits.gstRate = cleanNum(bg.querySelector('#ef_gstRate').value);
 
-    // Write back to row
-    S.rows[rowIdx]['Transaction UTR Number']       = edits.utr;
-    S.rows[rowIdx]['Transaction Reference Number'] = edits.txRef;
-    S.rows[rowIdx]['Transaction Amount']           = edits.amount;
-    S.rows[rowIdx]['Transaction Type']             = edits.txType;
-    S.rows[rowIdx]['Seller Name']                  = edits.billName;
-    S.rows[rowIdx]['_description']                 = edits.description;
-    S.rows[rowIdx]['_invNum']                      = edits.invNum;
-    S.rows[rowIdx]['_billAddress']                 = edits.billAddress;
-    S.rows[rowIdx]['_billCity']                    = edits.billCity;
-    S.rows[rowIdx]['_billState']                   = edits.billState;
-    S.rows[rowIdx]['_billPin']                     = edits.billPin;
-    S.rows[rowIdx]['_billGST']                     = edits.billGST;
-    S.rows[rowIdx]['_billPAN']                     = edits.billPAN;
-    // Save logo override on the row
-    S.rows[rowIdx]['_logoB64']                     = edits.logoB64;
+    const r = S.rows[rowIdx];
+    r['Transaction UTR Number']       = edits.utr;
+    r['Transaction Reference Number'] = edits.txRef;
+    r['Transaction Amount']           = edits.amount;
+    r['Transaction Type']             = edits.txType;
+    r['Seller Name']                  = edits.billName;
+    r['_description']                 = edits.description;
+    r['_invNum']                      = edits.invNum;
+    r['_gstRate']                     = edits.gstRate;
+    r['_billName']                    = edits.billName;
+    r['_billAddress']                 = edits.billAddress;
+    r['_billCity']                    = edits.billCity;
+    r['_billState']                   = edits.billState;
+    r['_billPin']                     = edits.billPin;
+    r['_billGST']                     = edits.billGST;
+    r['_billPAN']                     = edits.billPAN;
+    r['_logoB64']                     = edits.logoB64;
 
-    // If a new logo was uploaded and user didn't have one globally, offer to save globally
     if(edits.logoB64 && !(S.company && S.company.logoB64)) {
-      if(S.company) {
-        S.company.logoB64 = edits.logoB64;
-        dbPut('settings', { key:'company', value: JSON.stringify(S.company) });
-        toast('Row updated & logo saved to company profile!', 'good');
-      } else {
-        toast('Row updated. Set up Seller Setup to save logo globally.', 'good');
-      }
-    } else {
-      toast('Row updated. Click Generate to rebuild invoices.', 'good');
+      if(S.company) { S.company.logoB64 = edits.logoB64; dbPut('settings',{key:'company',value:JSON.stringify(S.company)}); }
     }
-
+    toast('Row updated. Click Generate to rebuild invoices.', 'good');
     bg.remove();
     render();
   });
@@ -1038,18 +1126,24 @@ function showEditModal(rowIdx) {
   bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
 }
 
-/* Build invoice HTML from an edits object (used by edit modal live preview) */
+/* Build invoice HTML from edits object (live preview in edit modal) */
 function buildInvoiceHTMLFromEdits(ed) {
-  const co = S.company||{};
-  const amount = cleanNum(ed.amount);
-  const words = numWords(amount);
-  const invDate = parseDate(new Date());
-  const coName = co.name||'';
-  const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const co   = S.company || {};
+  const gst  = calcGST(ed.amount, ed.gstRate, co.state||'', ed.billState||'');
+  const words = numWords(gst.total);
+  const invDate    = parseDate(new Date());
+  const coName     = co.name || '';
+  const coAddr     = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
   const fullBillAddr = [ed.billAddress,ed.billCity,ed.billState,ed.billPin].filter(Boolean).join(', ');
-  const desc = ed.description || ('Settlement '+(ed.txType||'COLLECTION')+' — Record ID: '+esc(ed.settlementId));
-  // Use edits logo first, then company logo
+  const desc  = ed.description || ('Settlement '+(ed.txType||'COLLECTION')+' — Record ID: '+esc(ed.settlementId));
   const logoB64 = ed.logoB64 || co.logoB64 || null;
+
+  const totalsRows = gst.isSame
+    ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+       <tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
+       <tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
+    : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+       <tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
 
   return `<div class="inv-paper">
     <div class="inv-top">
@@ -1083,25 +1177,34 @@ function buildInvoiceHTMLFromEdits(ed) {
       </div>
     </div>
     <table class="inv-table">
-      <thead><tr><th>SI.No</th><th>Description</th><th>UTR Number</th><th>Unit Price</th><th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th></tr></thead>
+      <thead><tr>
+        <th>SI.No</th><th>Description</th><th>UTR Number</th>
+        <th>Unit Price</th><th>QTY</th><th>Net Amount</th>
+        <th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
+      </tr></thead>
       <tbody>
         <tr>
           <td>1</td>
           <td style="min-width:150px;">${desc}<br><span style="color:#666;font-size:9px;">Ref: ${esc(ed.txRef)}</span></td>
           <td style="font-family:monospace;font-size:9px;">${esc(ed.utr)}</td>
-          <td style="text-align:right;">${fmtINR(amount)}</td>
+          <td style="text-align:right;">${fmtINR(gst.base)}</td>
           <td style="text-align:center;">1</td>
-          <td style="text-align:right;">${fmtINR(amount)}</td>
-          <td style="text-align:center;">—</td><td style="text-align:center;">—</td><td style="text-align:right;">—</td>
-          <td style="text-align:right;font-weight:700;">${fmtINR(amount)}</td>
+          <td style="text-align:right;">${fmtINR(gst.base)}</td>
+          <td style="text-align:center;">${gst.rate}%</td>
+          <td style="text-align:center;">${gst.taxType}</td>
+          <td style="text-align:right;">${fmtINR(gst.taxAmt)}</td>
+          <td style="text-align:right;font-weight:700;">${fmtINR(gst.total)}</td>
         </tr>
       </tbody>
-      <tfoot><tr><td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td><td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(amount)}</td></tr></tfoot>
+      <tfoot><tr>
+        <td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
+        <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td>
+      </tr></tfoot>
     </table>
     <div style="display:flex;justify-content:flex-end;">
       <table class="inv-totals">
-        <tr><td>Net Amount</td><td style="text-align:right;">${fmtINR(amount)}</td></tr>
-        <tr class="total-final"><td>Total</td><td style="text-align:right;">${fmtINR(amount)}</td></tr>
+        ${totalsRows}
+        <tr class="total-final"><td><b>Total</b></td><td style="text-align:right;"><b>${fmtINR(gst.total)}</b></td></tr>
       </table>
     </div>
     <div class="inv-words"><b>Amount in Words:</b> ${esc(words)}</div>
@@ -1132,7 +1235,7 @@ function buildInvoiceHTMLFromEdits(ed) {
 function showPreviewModal(row) {
   if(!row) return;
   const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-  const invNum = genInvNum(row);
+  const invNum  = genInvNum(row);
   const bg = document.createElement('div');
   bg.className = 'modal-bg';
   bg.style.cssText = 'align-items:flex-start;padding:20px;overflow-y:auto;';
@@ -1145,9 +1248,9 @@ function showPreviewModal(row) {
           <button class="btn btn-ghost btn-sm" id="closePreview">✕ Close</button>
         </div>
       </div>
-      ${!profile ? `<div class="note warn" style="margin-bottom:12px;">No profile found for <b>${esc(row['Seller Name'])}</b>. 
+      ${!profile ? `<div class="note warn" style="margin-bottom:12px;">No profile found for <b>${esc(row['Seller Name'])}</b>.
         <span style="cursor:pointer;text-decoration:underline;color:var(--amber);" id="goAddProfile">Add profile →</span>
-        Billing address fields will be blank.</div>` : ''}
+        Billing address and state (for GST) will be blank.</div>` : ''}
       <div style="overflow-x:auto;">${buildInvoiceHTML(row, profile, invNum)}</div>
     </div>`;
   document.body.appendChild(bg);
@@ -1157,27 +1260,28 @@ function showPreviewModal(row) {
 }
 
 /* ═══════════════════════════════════════════════
-   BUILD PDF
+   BUILD PDF (with real GST)
 ═══════════════════════════════════════════════ */
 function buildPDF(row, profile, invNum) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const L=14, R=196, W=182;
   let y = 16;
-  const co = S.company||{};
-  const p = profile||{};
-  const amount = cleanNum(row['Transaction Amount']);
-  const merchantName = p.name||row['Seller Name']||'';
-  const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
-  const coName = co.name||'';
-  const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
-  const words = numWords(amount);
+  const co  = S.company || {};
+  const p   = profile   || {};
+  const gst = getGSTInfo(row, profile);
+
+  const merchantName  = row['_billName'] || p.name || row['Seller Name'] || '';
+  const fullBillAddr  = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
+  const coName  = co.name  || '';
+  const coAddr  = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const words   = numWords(gst.total);
   const invDate = parseDate(new Date());
-  const txDate = parseDate(row['Transaction Date']);
-  const utr = row['Transaction UTR Number']||'';
-  const settlementRecId = row['Seller Settlement Records ID']||'';
-  const txRef = row['Transaction Reference Number']||'';
-  const txType = row['Transaction Type']||'COLLECTION';
+  const txDate  = parseDate(row['Transaction Date']);
+  const utr     = row['Transaction UTR Number'] || '';
+  const settlementRecId = row['Seller Settlement Records ID'] || '';
+  const txRef   = row['Transaction Reference Number'] || '';
+  const txType  = row['Transaction Type'] || 'COLLECTION';
   const logoB64 = row['_logoB64'] || co.logoB64 || null;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(15);
@@ -1185,8 +1289,7 @@ function buildPDF(row, profile, invNum) {
 
   if(logoB64) {
     try {
-      // Detect image type
-      const mime = logoB64.split(';')[0].split(':')[1] || 'image/png';
+      const mime    = logoB64.split(';')[0].split(':')[1] || 'image/png';
       const imgType = mime.includes('jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(logoB64, imgType, R-45, y-8, 45, 16, undefined, 'FAST');
     } catch(e) {
@@ -1199,16 +1302,11 @@ function buildPDF(row, profile, invNum) {
 
   y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   doc.text('(Original for Recipient)', L, y);
-  y+=3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L, y, R, y); y+=4;
+  y+=3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L,y,R,y); y+=4;
 
   doc.setFontSize(8.5);
-  const metaLines = [
-    `Invoice Number: ${invNum}`,
-    `Invoice Date: ${invDate}`,
-    `Transaction Date: ${txDate}`,
-    `Seller ID: ${row['Seller ID']||''}`,
-  ];
-  metaLines.forEach(l => { doc.text(l, R, y, {align:'right'}); y+=4.5; });
+  [`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`, `Transaction Date: ${txDate}`, `Seller ID: ${row['Seller ID']||''}`]
+    .forEach(l => { doc.text(l, R, y, {align:'right'}); y+=4.5; });
   y+=2;
 
   let ly=y, ry=y;
@@ -1219,10 +1317,21 @@ function buildPDF(row, profile, invNum) {
   doc.text(merchantName||'—', L, ly); doc.text(merchantName||'—', 110, ry);
   ly+=4.5; ry+=4.5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  if(fullBillAddr) { const ls=doc.splitTextToSize(fullBillAddr,90); doc.text(ls,L,ly); ly+=ls.length*4; doc.text(ls,110,ry); ry+=ls.length*4; }
-  if(p.gst) { doc.text(`GST: ${p.gst}`,L,ly); ly+=4; }
-  if(p.pan) { doc.text(`PAN: ${p.pan}`,L,ly); ly+=4; }
+  if(fullBillAddr) {
+    const ls = doc.splitTextToSize(fullBillAddr,90);
+    doc.text(ls,L,ly); ly+=ls.length*4;
+    doc.text(ls,110,ry); ry+=ls.length*4;
+  }
+  const billGST = row['_billGST'] || p.gst || '';
+  const billPAN = row['_billPAN'] || p.pan || '';
+  if(billGST) { doc.text(`GST: ${billGST}`,L,ly); ly+=4; }
+  if(billPAN) { doc.text(`PAN: ${billPAN}`,L,ly); ly+=4; }
   y = Math.max(ly,ry)+4;
+
+  // Tax columns based on same/diff state
+  const taxRateCol = `${gst.rate}%`;
+  const taxTypeCol = gst.taxType;
+  const taxAmtCol  = fmtINR(gst.taxAmt);
 
   doc.autoTable({
     startY: y,
@@ -1231,43 +1340,53 @@ function buildPDF(row, profile, invNum) {
       '1',
       `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,
       utr,
-      fmtINR(amount),'1',fmtINR(amount),'—','—','—',fmtINR(amount)
+      fmtINR(gst.base), '1', fmtINR(gst.base),
+      taxRateCol, taxTypeCol, taxAmtCol, fmtINR(gst.total)
     ]],
-    foot:[[ '', '', '', '', '', '', '', '', 'TOTAL:', fmtINR(amount) ]],
+    foot:[['','','','','','','','','TOTAL:', fmtINR(gst.total)]],
     margin:{left:L, right:14},
     styles:{fontSize:8, overflow:'linebreak', cellPadding:3},
     headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
     footStyles:{fillColor:[240,240,240],fontStyle:'bold'},
     columnStyles:{
-      0:{cellWidth:8}, 1:{cellWidth:42}, 2:{cellWidth:28},
+      0:{cellWidth:8},  1:{cellWidth:38}, 2:{cellWidth:26},
       3:{cellWidth:18,halign:'right'}, 4:{cellWidth:8,halign:'center'},
       5:{cellWidth:18,halign:'right'}, 6:{cellWidth:12,halign:'center'},
-      7:{cellWidth:12,halign:'center'}, 8:{cellWidth:14,halign:'right'},
-      9:{cellWidth:18,halign:'right'},
+      7:{cellWidth:14,halign:'center'},8:{cellWidth:14,halign:'right'},
+      9:{cellWidth:20,halign:'right'},
     }
   });
   y = doc.lastAutoTable.finalY + 5;
 
+  // Totals block
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  if(gst.isSame) {
+    doc.text(`Base Amount: ${fmtINR(gst.base)}`, R, y, {align:'right'}); y+=4.5;
+    doc.text(`CGST @ ${gst.rate/2}%: ${fmtINR(gst.cgst)}`, R, y, {align:'right'}); y+=4.5;
+    doc.text(`SGST @ ${gst.rate/2}%: ${fmtINR(gst.sgst)}`, R, y, {align:'right'}); y+=4.5;
+  } else {
+    doc.text(`Base Amount: ${fmtINR(gst.base)}`, R, y, {align:'right'}); y+=4.5;
+    doc.text(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`, R, y, {align:'right'}); y+=4.5;
+  }
   doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-  doc.text(`Total: ${fmtINR(amount)}`, R, y, {align:'right'}); y+=6;
+  doc.text(`Total: ${fmtINR(gst.total)}`, R, y, {align:'right'}); y+=6;
 
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W);
-  doc.setFillColor(249,249,249); doc.rect(L, y-3, W, wl.length*4.5+3, 'F');
+  doc.setFillColor(249,249,249); doc.rect(L,y-3,W,wl.length*4.5+3,'F');
   doc.text(wl, L+2, y); y += wl.length*4.5+5;
   doc.setFont('helvetica','bold');
   doc.text(`From ${coName}`, L, y); y+=8;
 
-  doc.setDrawColor(200); doc.line(L, y, R, y); y+=5;
-
+  doc.setDrawColor(200); doc.line(L,y,R,y); y+=5;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.text('SOLD BY', L, y); y+=5;
   doc.text(coName, L, y); y+=4.5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   if(coAddr){ const ls=doc.splitTextToSize(coAddr,90); doc.text(ls,L,y); y+=ls.length*4; }
-  if(co.pan)  { doc.text(`PAN No: ${co.pan}`,  L, y); y+=4; }
-  if(co.gst)  { doc.text(`GST Registration No: ${co.gst}`, L, y); y+=4; }
-  if(co.cin)  { doc.text(`CIN No: ${co.cin}`,  L, y); y+=4; }
+  if(co.pan) { doc.text(`PAN No: ${co.pan}`, L, y); y+=4; }
+  if(co.gst) { doc.text(`GST Registration No: ${co.gst}`, L, y); y+=4; }
+  if(co.cin) { doc.text(`CIN No: ${co.cin}`, L, y); y+=4; }
 
   const ph = doc.internal.pageSize.height;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
@@ -1281,41 +1400,47 @@ function buildPDF(row, profile, invNum) {
 }
 
 /* ═══════════════════════════════════════════════
-   BUILD DOCX
+   BUILD DOCX (with real GST)
 ═══════════════════════════════════════════════ */
 function wP(t, opts={}) {
-  const bold=opts.bold?'<w:b/>':'';
-  const sz=opts.size?`<w:sz w:val="${opts.size*2}"/>`:'';
-  const align=opts.align?`<w:jc w:val="${opts.align}"/>`:'';
-  const ppr=align?`<w:pPr>${align}</w:pPr>`:'';
-  const rpr=(bold||sz)?`<w:rPr>${bold}${sz}</w:rPr>`:'';
-  return String(t??'').split('\n').map(line=>`<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`).join('');
+  const bold  = opts.bold  ? '<w:b/>' : '';
+  const sz    = opts.size  ? `<w:sz w:val="${opts.size*2}"/>` : '';
+  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : '';
+  const ppr   = align ? `<w:pPr>${align}</w:pPr>` : '';
+  const rpr   = (bold||sz) ? `<w:rPr>${bold}${sz}</w:rPr>` : '';
+  return String(t??'').split('\n').map(line =>
+    `<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`
+  ).join('');
 }
 const eX = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function wTR(cells,opts={}) {
+function wTR(cells, opts={}) {
   return `<w:tr>${cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c,opts)}</w:tc>`).join('')}</w:tr>`;
 }
 function wTable(rows) {
-  const b=`<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
+  const b = `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
   return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${b}</w:tblPr>${rows}</w:tbl>`;
 }
 
 async function buildDOCX(row, profile, invNum) {
-  const co = S.company||{};
-  const p = profile||{};
-  const amount = cleanNum(row['Transaction Amount']);
-  const merchantName = p.name||row['Seller Name']||'';
-  const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
-  const coName = co.name||'';
-  const words = numWords(amount);
-  const invDate = parseDate(new Date());
-  const txDate = parseDate(row['Transaction Date']);
-  const utr = row['Transaction UTR Number']||'';
-  const settlementRecId = row['Seller Settlement Records ID']||'';
-  const txRef = row['Transaction Reference Number']||'';
-  const txType = row['Transaction Type']||'COLLECTION';
+  const co  = S.company || {};
+  const p   = profile   || {};
+  const gst = getGSTInfo(row, profile);
 
-  let body='';
+  const merchantName = row['_billName'] || p.name || row['Seller Name'] || '';
+  const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
+  const coName  = co.name || '';
+  const coAddr  = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const words   = numWords(gst.total);
+  const invDate = parseDate(new Date());
+  const txDate  = parseDate(row['Transaction Date']);
+  const utr     = row['Transaction UTR Number'] || '';
+  const settlementRecId = row['Seller Settlement Records ID'] || '';
+  const txRef   = row['Transaction Reference Number'] || '';
+  const txType  = row['Transaction Type'] || 'COLLECTION';
+  const billGST = row['_billGST'] || p.gst || '';
+  const billPAN = row['_billPAN'] || p.pan || '';
+
+  let body = '';
   body += wP('Tax Invoice', {bold:true,size:14});
   body += wP('(Original for Recipient)', {size:9});
   body += wP('');
@@ -1329,25 +1454,38 @@ async function buildDOCX(row, profile, invNum) {
   body += wTable(
     wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8}) +
     wTR([
-      [merchantName, fullBillAddr, p.gst?`GST: ${p.gst}`:'', p.pan?`PAN: ${p.pan}`:''].filter(Boolean).join('\n'),
+      [merchantName, fullBillAddr, billGST?`GST: ${billGST}`:'', billPAN?`PAN: ${billPAN}`:''].filter(Boolean).join('\n'),
       [merchantName, fullBillAddr].filter(Boolean).join('\n')
     ],{size:9})
   );
   body += wP('');
   body += wTable(
     wTR(['SI.No','Description','UTR Number','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8}) +
-    wTR(['1', `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`, utr, fmtINR(amount),'1',fmtINR(amount),'—','—','—',fmtINR(amount)],{size:8}) +
-    wTR(['','','','','','','','','TOTAL:',fmtINR(amount)],{bold:true,size:8})
+    wTR([
+      '1',
+      `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,
+      utr,
+      fmtINR(gst.base), '1', fmtINR(gst.base),
+      `${gst.rate}%`, gst.taxType, fmtINR(gst.taxAmt), fmtINR(gst.total)
+    ],{size:8}) +
+    wTR(['','','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8})
   );
   body += wP('');
-  body += wP(`Total: ${fmtINR(amount)}`, {bold:true,size:11,align:'right'});
+  // Totals breakdown
+  body += wP(`Base Amount: ${fmtINR(gst.base)}`, {size:9,align:'right'});
+  if(gst.isSame) {
+    body += wP(`CGST @ ${gst.rate/2}%: ${fmtINR(gst.cgst)}`, {size:9,align:'right'});
+    body += wP(`SGST @ ${gst.rate/2}%: ${fmtINR(gst.sgst)}`, {size:9,align:'right'});
+  } else {
+    body += wP(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`, {size:9,align:'right'});
+  }
+  body += wP(`Total: ${fmtINR(gst.total)}`, {bold:true,size:11,align:'right'});
   body += wP('');
   body += wP(`Amount in Words: ${words}`, {size:9});
   body += wP(`From ${coName}`, {bold:true,size:10});
   body += wP('');
   body += wP('SOLD BY', {bold:true,size:9});
   body += wP(coName, {bold:true,size:10});
-  const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
   if(coAddr) body += wP(coAddr, {size:9});
   if(co.pan) body += wP(`PAN No: ${co.pan}`, {size:9});
   if(co.gst) body += wP(`GST Registration No: ${co.gst}`, {size:9});
@@ -1378,11 +1516,11 @@ function viewProfiles() {
   return `
   <div style="margin-bottom:24px;">
     <h1>Merchant Profiles</h1>
-    <p class="page-sub">Store billing details for each merchant once. When generating invoices, the matching profile fills in their GST, PAN, and address automatically.</p>
+    <p class="page-sub">Store billing details for each merchant. State is used to determine IGST vs CGST+SGST automatically.</p>
   </div>
 
   <div class="note info" style="margin-bottom:18px;">
-    💡 <b>How matching works:</b> The merchant's name from your Excel is matched against profile names. 
+    💡 <b>How matching works:</b> The merchant's name from your Excel is matched against profile names.
     Partial matches work — "VISCOSE TECHNOLOGY" will match "VISCOSE TECHNOLOGY PRIVATE LIMITED".
   </div>
 
@@ -1401,7 +1539,10 @@ function viewProfiles() {
     <div class="field"><label>Registered Address</label><input type="text" id="pf_address" placeholder="123, Industrial Area, Phase 1"></div>
     <div class="grid3">
       <div class="field"><label>City</label><input type="text" id="pf_city" placeholder="Mumbai"></div>
-      <div class="field"><label>State</label><input type="text" id="pf_state" placeholder="Maharashtra"></div>
+      <div class="field">
+        <label>State <span style="color:var(--dim);font-weight:400;">(used for GST type)</span></label>
+        <input type="text" id="pf_state" placeholder="Maharashtra">
+      </div>
       <div class="field"><label>PIN Code</label><input type="text" id="pf_pin" placeholder="400001"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
@@ -1431,7 +1572,7 @@ function viewProfiles() {
   <div class="empty" style="padding:40px 20px;">
     <div class="empty-icon">🏢</div>
     <h3>No profiles yet</h3>
-    <p>Add profiles for your merchants above. Invoices can be generated even without profiles — billing fields will just be blank.</p>
+    <p>Add profiles above. The merchant's state is matched against your company state to decide IGST vs CGST+SGST.</p>
   </div>`}
   `;
 }
@@ -1443,14 +1584,14 @@ function wireProfiles() {
     S.profiles.push({
       id: uid(), name,
       sellerId: document.getElementById('pf_sid').value.trim(),
-      gst: document.getElementById('pf_gst').value.trim(),
-      pan: document.getElementById('pf_pan').value.trim(),
-      cin: document.getElementById('pf_cin').value.trim(),
-      email: document.getElementById('pf_email').value.trim(),
-      address: document.getElementById('pf_address').value.trim(),
-      city: document.getElementById('pf_city').value.trim(),
-      state: document.getElementById('pf_state').value.trim(),
-      pin: document.getElementById('pf_pin').value.trim(),
+      gst     : document.getElementById('pf_gst').value.trim(),
+      pan     : document.getElementById('pf_pan').value.trim(),
+      cin     : document.getElementById('pf_cin').value.trim(),
+      email   : document.getElementById('pf_email').value.trim(),
+      address : document.getElementById('pf_address').value.trim(),
+      city    : document.getElementById('pf_city').value.trim(),
+      state   : document.getElementById('pf_state').value.trim(),
+      pin     : document.getElementById('pf_pin').value.trim(),
     });
     saveProfiles();
     toast('Profile saved.','good');
@@ -1473,7 +1614,7 @@ async function saveProfiles() {
    PAGE: LIBRARY
 ═══════════════════════════════════════════════ */
 function viewLibrary() {
-  const inv = S.savedInvoices;
+  const inv   = S.savedInvoices;
   const total = inv.reduce((s,i)=>s+cleanNum(i.amount),0);
   return `
   <div style="margin-bottom:24px;">
@@ -1533,14 +1674,13 @@ function wireLibrary() {
   document.getElementById('libZipBtn')?.addEventListener('click', async () => {
     const z = new JSZip();
     S.savedInvoices.forEach(i => {
-      if(i.pdfB64) z.file(i.invNum+'.pdf', b64ToBlob(i.pdfB64,'application/pdf'));
+      if(i.pdfB64)  z.file(i.invNum+'.pdf',  b64ToBlob(i.pdfB64,'application/pdf'));
       if(i.docxB64) z.file(i.invNum+'.docx', b64ToBlob(i.docxB64,'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
     });
     const blob = await z.generateAsync({type:'blob'});
     triggerDL(blob, `all_invoices_${Date.now()}.zip`);
     toast(`Downloading ${S.savedInvoices.length} invoices as ZIP.`,'good');
   });
-
   document.getElementById('libClearBtn')?.addEventListener('click', async () => {
     if(!confirm(`Delete all ${S.savedInvoices.length} saved invoices? This cannot be undone.`)) return;
     await dbClear('invoices');
@@ -1548,7 +1688,6 @@ function wireLibrary() {
     toast('All invoices deleted.','');
     render();
   });
-
   document.querySelectorAll('[data-lib-pdf]').forEach(btn => {
     btn.addEventListener('click', () => {
       const inv = S.savedInvoices.find(i=>i.id===btn.dataset.libPdf);
@@ -1577,14 +1716,14 @@ async function loadInvoices() {
 }
 
 /* ═══════════════════════════════════════════════
-   PAGE: SELLER SETUP
+   PAGE: SELLER SETUP  (+ Default GST Rate)
 ═══════════════════════════════════════════════ */
 function viewSettings() {
-  const c = S.company||{};
+  const c = S.company || {};
   return `
   <div style="margin-bottom:24px;">
     <h1>Seller Setup</h1>
-    <p class="page-sub">Enter the details of the company issuing these invoices. Shown in the Sold By section of every invoice.</p>
+    <p class="page-sub">Enter your company details. <b>State</b> and <b>Default GST Rate</b> are used for automatic GST calculation on every invoice.</p>
   </div>
 
   <div class="card">
@@ -1594,12 +1733,34 @@ function viewSettings() {
         ${c.logoB64 ? '<img src="'+c.logoB64+'" style="max-width:140px;max-height:64px;object-fit:contain;">' : '<span style="font-size:11px;color:var(--dim);">No logo uploaded</span>'}
       </div>
       <div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload PNG or JPG. Appears top-right on every invoice in place of company name text.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload PNG or JPG. Appears top-right on every invoice.</div>
         <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
           📁 Upload Logo <input type="file" id="logoInput" accept="image/png,image/jpeg,image/jpg,image/svg+xml" style="display:none;">
         </label>
         ${c.logoB64 ? '<button class="btn btn-danger btn-sm" id="removeLogoBtn" style="margin-left:8px;">✕ Remove Logo</button>' : ''}
       </div>
+    </div>
+
+    <div class="card-title">📊 GST Settings</div>
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Default GST Rate % <span style="color:var(--dim);font-weight:400;">(applied to all invoices; can override per invoice)</span></label>
+        <select id="co_gstRate">
+          <option value="0"  ${(c.defaultGstRate||18)==0 ?'selected':''}>0% — Exempt / Not Applicable</option>
+          <option value="5"  ${(c.defaultGstRate||18)==5 ?'selected':''}>5%</option>
+          <option value="12" ${(c.defaultGstRate||18)==12?'selected':''}>12%</option>
+          <option value="18" ${(c.defaultGstRate||18)==18?'selected':''}>18% (default)</option>
+          <option value="28" ${(c.defaultGstRate||18)==28?'selected':''}>28%</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Your Company State <span style="color:var(--dim);font-weight:400;">(matched with merchant state for IGST/CGST+SGST)</span></label>
+        <input type="text" id="co_state" value="${esc(c.state||'')}" placeholder="e.g. Madhya Pradesh">
+      </div>
+    </div>
+    <div class="note info" style="margin-bottom:16px;">
+      💡 <b>GST Logic:</b> Transaction Amount = Final Total (unchanged).
+      Base price is reverse-calculated. If your state matches the merchant's state → <b>CGST + SGST</b>. Otherwise → <b>IGST</b>.
     </div>
 
     <div class="card-title">🏢 Company Details</div>
@@ -1614,7 +1775,6 @@ function viewSettings() {
     <div class="field"><label>Registered Address</label><input type="text" id="co_address" value="${esc(c.address||'')}" placeholder="Street, Area, Building"></div>
     <div class="grid3">
       <div class="field"><label>City</label><input type="text" id="co_city" value="${esc(c.city||'')}" placeholder="City"></div>
-      <div class="field"><label>State</label><input type="text" id="co_state" value="${esc(c.state||'')}" placeholder="State"></div>
       <div class="field"><label>PIN Code</label><input type="text" id="co_pin" value="${esc(c.pin||'')}" placeholder="000000"></div>
     </div>
     <div class="grid2">
@@ -1629,6 +1789,8 @@ function viewSettings() {
   ${S.company ? `
   <div class="note success">
     Saved: <b>${esc(S.company.name)}</b>
+    ${S.company.state ? ' · State: '+esc(S.company.state) : ''}
+    ${S.company.defaultGstRate !== undefined ? ' · Default GST: '+S.company.defaultGstRate+'%' : ''}
     ${S.company.gst ? ' · GST: '+esc(S.company.gst) : ''}
     ${S.company.pan ? ' · PAN: '+esc(S.company.pan) : ''}
     ${S.company.logoB64 ? ' · ✓ Logo uploaded' : ''}
@@ -1667,16 +1829,17 @@ function wireSettings() {
     const logoB64 = S.company?.logoB64 || null;
     S.company = {
       name, logoB64,
-      pan: document.getElementById('co_pan').value.trim(),
-      gst: document.getElementById('co_gst').value.trim(),
-      cin: document.getElementById('co_cin').value.trim(),
-      email: document.getElementById('co_email').value.trim(),
-      phone: document.getElementById('co_phone').value.trim(),
-      address: document.getElementById('co_address').value.trim(),
-      city: document.getElementById('co_city').value.trim(),
-      state: document.getElementById('co_state').value.trim(),
-      pin: document.getElementById('co_pin').value.trim(),
-      signatory: document.getElementById('co_signatory').value.trim(),
+      defaultGstRate : cleanNum(document.getElementById('co_gstRate').value),
+      pan        : document.getElementById('co_pan').value.trim(),
+      gst        : document.getElementById('co_gst').value.trim(),
+      cin        : document.getElementById('co_cin').value.trim(),
+      email      : document.getElementById('co_email').value.trim(),
+      phone      : document.getElementById('co_phone').value.trim(),
+      address    : document.getElementById('co_address').value.trim(),
+      city       : document.getElementById('co_city').value.trim(),
+      state      : document.getElementById('co_state').value.trim(),
+      pin        : document.getElementById('co_pin').value.trim(),
+      signatory  : document.getElementById('co_signatory').value.trim(),
       designation: document.getElementById('co_designation').value.trim(),
     };
     await dbPut('settings', { key:'company', value: JSON.stringify(S.company) });
@@ -1692,8 +1855,8 @@ async function boot() {
   try {
     await openDB();
     S.savedInvoices = await loadInvoices();
-    const companyRec = await dbGet('settings','company');
-    if(companyRec) S.company = JSON.parse(companyRec.value);
+    const companyRec  = await dbGet('settings','company');
+    if(companyRec)  S.company  = JSON.parse(companyRec.value);
     const profilesRec = await dbGet('settings','profiles');
     if(profilesRec) S.profiles = JSON.parse(profilesRec.value);
   } catch(e) {
