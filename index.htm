@@ -377,7 +377,14 @@ const S = {
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const uid = () => Math.random().toString(36).slice(2,9);
 const fmt = ts => new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-const fmtINR = n => '₹'+Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const cleanNum = v => {
+  if(v === null || v === undefined || v === '') return 0;
+  if(typeof v === 'number') return isNaN(v) ? 0 : v;
+  const s = String(v).replace(/[₹,\s]/g, '').trim();
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+};
+const fmtINR = n => '₹'+cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 function triggerDL(blob, name) {
   const url = URL.createObjectURL(blob);
@@ -416,11 +423,18 @@ function genInvNum(row) {
   return 'INV-' + String(row['Seller Settlement Records ID'] || uid()).slice(-8);
 }
 
-// Format date nicely
+// Format date — handles Date objects, Excel serial numbers, and string formats
 function parseDate(raw) {
   if(!raw) return '';
+  // JS Date object
   if(raw instanceof Date) return raw.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
-  // "20/6/2026, 1:43 PM"
+  // Excel date serial number (raw:true returns these as numbers for date cells)
+  if(typeof raw === 'number' && raw > 1000) {
+    // Convert Excel serial to JS Date (Excel epoch = Jan 1 1900, JS = Jan 1 1970)
+    const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+    return d.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  // String like "20/6/2026, 1:43 PM" or "20/6/2026"
   const s = String(raw);
   const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
   if(m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}/${m[3]}`;
@@ -463,7 +477,7 @@ function viewInvoices() {
   const gen = S.generated;
 
   // Stats
-  const totalAmt = rows.reduce((s,r)=>s+Number(r['Transaction Amount']||0),0);
+  const totalAmt = rows.reduce((s,r)=>s+cleanNum(r['Transaction Amount']),0);
   const sellers = [...new Set(rows.map(r=>r['Seller Name']))].filter(Boolean);
 
   return `
@@ -631,9 +645,9 @@ function handleFile(file) {
   reader.onload = e => {
     try {
       const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type:'array', cellDates:true, raw:false });
+      const wb = XLSX.read(data, { type:'array', cellDates:true, raw:true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false });
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
       if(!json.length) throw new Error('No rows found in file');
       S.rows = json;
       S.generated = [];
@@ -662,7 +676,7 @@ async function generateAll() {
     const row = S.rows[i];
     const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
     const invNum = genInvNum(row);
-    const amount = Number(row['Transaction Amount']||0);
+    const amount = cleanNum(row['Transaction Amount']);
 
     const pdfBlob = buildPDF(row, profile, invNum);
     const docxBlob = await buildDOCX(row, profile, invNum);
@@ -716,7 +730,7 @@ async function downloadZip() {
 function buildInvoiceHTML(row, profile, invNum) {
   const co = S.company || {};
   const p = profile || {};
-  const amount = Number(row['Transaction Amount']||0);
+  const amount = cleanNum(row['Transaction Amount']);
   const taxRate = co.taxRate || 18;
   const taxType = co.taxType || 'IGST';
   // For settlement invoices: amount is the net, calculate tax from it
@@ -911,7 +925,7 @@ function buildPDF(row, profile, invNum) {
   let y = 16;
   const co = S.company||{};
   const p = profile||{};
-  const amount = Number(row['Transaction Amount']||0);
+  const amount = cleanNum(row['Transaction Amount']);
   const merchantName = p.name||row['Seller Name']||'';
   const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
   const coName = co.name||'YOUR COMPANY';
@@ -1043,7 +1057,7 @@ function wTable(rows) {
 async function buildDOCX(row, profile, invNum) {
   const co = S.company||{};
   const p = profile||{};
-  const amount = Number(row['Transaction Amount']||0);
+  const amount = cleanNum(row['Transaction Amount']);
   const merchantName = p.name||row['Seller Name']||'';
   const fullBillAddr = [p.address,p.city,p.state,p.pin].filter(Boolean).join(', ');
   const coName = co.name||'YOUR COMPANY';
@@ -1214,7 +1228,7 @@ async function saveProfiles() {
 ═══════════════════════════════════════════════ */
 function viewLibrary() {
   const inv = S.savedInvoices;
-  const total = inv.reduce((s,i)=>s+Number(i.amount||0),0);
+  const total = inv.reduce((s,i)=>s+cleanNum(i.amount),0);
   return `
   <div style="margin-bottom:24px;">
     <h1>Saved Invoices</h1>
