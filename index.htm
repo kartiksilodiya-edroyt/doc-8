@@ -363,6 +363,33 @@ async function dbClearInvoices() {
   if(error) throw error;
 }
 
+// UPLOADED SETTLEMENT ROWS (so the uploaded Excel survives a refresh / is shared across devices)
+const ROWS_SINGLETON_ID = '00000000-0000-0000-0000-000000000002';
+
+async function dbSaveRows(rows, fileName) {
+  const payload = {
+    id         : ROWS_SINGLETON_ID,
+    file_name  : fileName || null,
+    row_count  : rows.length,
+    rows       : rows,
+    uploaded_at: new Date().toISOString(),
+  };
+  const { error } = await supa.from('settlement_uploads').upsert(payload, { onConflict: 'id' });
+  if(error) throw error;
+}
+
+async function dbLoadRows() {
+  const { data, error } = await supa.from('settlement_uploads').select('*').eq('id', ROWS_SINGLETON_ID).single();
+  if(error && error.code !== 'PGRST116') throw error;
+  if(!data) return { rows: [], fileName: null };
+  return { rows: data.rows || [], fileName: data.file_name || null };
+}
+
+async function dbClearRows() {
+  const { error } = await supa.from('settlement_uploads').delete().eq('id', ROWS_SINGLETON_ID);
+  if(error) throw error;
+}
+
 // PROFILES
 async function dbSaveProfiles(profiles) {
   // Upsert all; first clear old ones not in the new list
@@ -491,6 +518,7 @@ async function uploadInvoiceFiles(invNum, pdfBlob, docxBlob) {
 const S = {
   page: 'invoices',
   rows: [],
+  uploadedFileName: null,
   profiles: [],
   company: null,
   savedInvoices: [],
@@ -673,6 +701,7 @@ function viewInvoices() {
         <span class="badge badge-green">✓ ${rows.length} rows loaded</span>
         <span class="badge badge-blue">${sellers.length} unique merchants</span>
         <span class="badge badge-dim">Total: ${fmtINR(totalAmt)}</span>
+        ${S.uploadedFileName ? `<span class="badge badge-dim">☁️ ${esc(S.uploadedFileName)}</span>` : ''}
       </div>
       <button class="btn btn-ghost btn-sm" id="clearDataBtn">Clear data</button>
     </div>` : ''}
@@ -769,7 +798,14 @@ function wireInvoices() {
     drop.addEventListener('drop', e => { if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
     inp.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
   }
-  document.getElementById('clearDataBtn')?.addEventListener('click', () => { S.rows=[]; S.generated=[]; render(); });
+  document.getElementById('clearDataBtn')?.addEventListener('click', async () => {
+    S.rows=[]; S.generated=[]; S.uploadedFileName=null;
+    render();
+    if(supaReady) {
+      try { await dbClearRows(); toast('Cleared uploaded data from cloud.',''); }
+      catch(e) { toast('Cloud clear failed: '+e.message,'bad'); }
+    }
+  });
   document.getElementById('genAllBtn')?.addEventListener('click', generateAll);
   document.getElementById('zipAllBtn')?.addEventListener('click', downloadZip);
   document.getElementById('viewLibBtn')?.addEventListener('click', () => goto('library'));
@@ -799,16 +835,26 @@ function wireInvoices() {
 
 function handleFile(file) {
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const data = new Uint8Array(e.target.result);
       const wb   = XLSX.read(data, { type:'array', cellDates:true, raw:true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
       if(!json.length) throw new Error('No rows found in file');
-      S.rows = json; S.generated = [];
-      toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
+      S.rows = json; S.generated = []; S.uploadedFileName = file.name;
       render();
+      toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
+
+      if(supaReady) {
+        try {
+          await dbSaveRows(S.rows, file.name);
+          toast(`☁️ ${json.length} rows saved to cloud`, 'good');
+        } catch(err) {
+          console.warn('Saving rows to cloud failed:', err);
+          toast('Rows loaded, but cloud save failed: '+err.message, 'bad');
+        }
+      }
     } catch(err) { toast('Error reading file: '+err.message, 'bad'); }
   };
   reader.readAsArrayBuffer(file);
@@ -1168,7 +1214,7 @@ function showEditModal(rowIdx) {
     refreshPreview();
   });
 
-  bg.querySelector('#ef_applyBtn').addEventListener('click', () => {
+  bg.querySelector('#ef_applyBtn').addEventListener('click', async () => {
     textFields.forEach(f => { const inp = bg.querySelector('#ef_'+f); if(inp) edits[f] = f==='amount'?cleanNum(inp.value):inp.value; });
     edits.gstRate = cleanNum(bg.querySelector('#ef_gstRate').value);
     const r = S.rows[rowIdx];
@@ -1191,6 +1237,10 @@ function showEditModal(rowIdx) {
     r['_logoUrl']      = edits.logoUrl;
     toast('Row updated. Click Generate to rebuild invoices.','good');
     bg.remove(); render();
+    if(supaReady) {
+      try { await dbSaveRows(S.rows, S.uploadedFileName); }
+      catch(e) { console.warn('Cloud sync of edited row failed:', e); toast('Edit saved locally, cloud sync failed: '+e.message,'bad'); }
+    }
   });
   bg.querySelector('#ef_closeBtn').addEventListener('click', () => bg.remove());
   bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
@@ -1692,14 +1742,17 @@ async function boot() {
 
   // Load all data from Supabase
   try {
-    const [company, profiles, invoices] = await Promise.all([
+    const [company, profiles, invoices, uploaded] = await Promise.all([
       dbLoadCompany(),
       dbLoadProfiles(),
       dbLoadInvoices(),
+      dbLoadRows(),
     ]);
-    S.company       = company;
-    S.profiles      = profiles;
-    S.savedInvoices = invoices;
+    S.company          = company;
+    S.profiles         = profiles;
+    S.savedInvoices    = invoices;
+    S.rows             = uploaded.rows || [];
+    S.uploadedFileName = uploaded.fileName || null;
   } catch(e) {
     console.error('Data load error:', e);
     toast('Error loading data: '+e.message,'bad');
