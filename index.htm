@@ -384,7 +384,6 @@ function calcGST(totalAmount, gstRate, sellerState, buyerState) {
   const base  = parseFloat((total / (1 + rate / 100)).toFixed(2));
   const tax   = parseFloat((total - base).toFixed(2));
 
-  // Normalise state names for comparison
   const sA = (sellerState || '').toLowerCase().trim();
   const sB = (buyerState  || '').toLowerCase().trim();
   const sameState = sA && sB && sA === sB;
@@ -415,7 +414,6 @@ function calcGST(totalAmount, gstRate, sellerState, buyerState) {
   }
 }
 
-/* Get GST info for a row given current state & profile */
 function getGSTInfo(row, profile) {
   const co      = S.company || {};
   const p       = profile   || {};
@@ -770,7 +768,7 @@ async function downloadZip() {
 }
 
 /* ═══════════════════════════════════════════════
-   INVOICE HTML (with real GST rows)
+   INVOICE HTML (UTR Number column removed)
 ═══════════════════════════════════════════════ */
 function buildInvoiceHTML(row, profile, invNum) {
   const co  = S.company || {};
@@ -790,7 +788,6 @@ function buildInvoiceHTML(row, profile, invNum) {
   const words   = numWords(gst.total);
   const invDate = parseDate(new Date());
   const txDate  = parseDate(row['Transaction Date']);
-  const utr     = row['Transaction UTR Number'] || '';
   const txRef   = row['Transaction Reference Number'] || '';
   const txType  = row['Transaction Type'] || 'COLLECTION';
   const settlementRecId = row['Seller Settlement Records ID'] || '';
@@ -804,7 +801,6 @@ function buildInvoiceHTML(row, profile, invNum) {
   const coDesig     = co.designation || 'Director';
   const logoB64     = row['_logoB64'] || co.logoB64 || null;
 
-  // Build totals summary rows
   const totalsRows = gst.isSame
     ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
        <tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
@@ -849,7 +845,7 @@ function buildInvoiceHTML(row, profile, invNum) {
     <table class="inv-table">
       <thead>
         <tr>
-          <th>SI.No</th><th>Description</th><th>UTR Number</th>
+          <th>SI.No</th><th>Description</th>
           <th>Unit Price</th><th>QTY</th><th>Net Amount</th>
           <th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
         </tr>
@@ -861,7 +857,6 @@ function buildInvoiceHTML(row, profile, invNum) {
             ${row['_description'] || ('Settlement '+esc(txType)+' — Record ID: '+esc(String(settlementRecId)))}<br>
             <span style="color:#666;font-size:9px;">Ref: ${esc(txRef)}</span>
           </td>
-          <td style="font-family:monospace;font-size:9px;">${esc(utr)}</td>
           <td style="text-align:right;">${fmtINR(gst.base)}</td>
           <td style="text-align:center;">1</td>
           <td style="text-align:right;">${fmtINR(gst.base)}</td>
@@ -873,7 +868,7 @@ function buildInvoiceHTML(row, profile, invNum) {
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
+          <td colspan="8" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
           <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td>
         </tr>
       </tfoot>
@@ -1047,7 +1042,6 @@ function showEditModal(rowIdx) {
 
   updateGSTChip();
 
-  // Text fields
   const textFields = ['invNum','txDate','amount','description','utr','txRef','billName','billAddress','billCity','billState','billPin','billGST','billPAN'];
   textFields.forEach(f => {
     const el = bg.querySelector('#ef_'+f);
@@ -1057,13 +1051,11 @@ function showEditModal(rowIdx) {
     });
   });
 
-  // GST rate dropdown
   bg.querySelector('#ef_gstRate').addEventListener('change', e => {
     edits.gstRate = cleanNum(e.target.value);
     refreshPreview();
   });
 
-  // Logo upload
   const logoInput    = bg.querySelector('#ef_logoInput');
   const logoPreviewEl= bg.querySelector('#ef_logoPreview');
   logoPreviewEl.addEventListener('click', () => logoInput.click());
@@ -1088,7 +1080,6 @@ function showEditModal(rowIdx) {
 
   bg.querySelector('#ef_goSettings')?.addEventListener('click', () => { bg.remove(); goto('settings'); });
 
-  // Apply
   bg.querySelector('#ef_applyBtn').addEventListener('click', () => {
     textFields.forEach(f => {
       const inp = bg.querySelector('#ef_'+f);
@@ -1126,7 +1117,7 @@ function showEditModal(rowIdx) {
   bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
 }
 
-/* Build invoice HTML from edits object (live preview in edit modal) */
+/* Build invoice HTML from edits object (live preview — UTR column removed) */
 function buildInvoiceHTMLFromEdits(ed) {
   const co   = S.company || {};
   const gst  = calcGST(ed.amount, ed.gstRate, co.state||'', ed.billState||'');
@@ -1178,7 +1169,7 @@ function buildInvoiceHTMLFromEdits(ed) {
     </div>
     <table class="inv-table">
       <thead><tr>
-        <th>SI.No</th><th>Description</th><th>UTR Number</th>
+        <th>SI.No</th><th>Description</th>
         <th>Unit Price</th><th>QTY</th><th>Net Amount</th>
         <th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
       </tr></thead>
@@ -1186,7 +1177,6 @@ function buildInvoiceHTMLFromEdits(ed) {
         <tr>
           <td>1</td>
           <td style="min-width:150px;">${desc}<br><span style="color:#666;font-size:9px;">Ref: ${esc(ed.txRef)}</span></td>
-          <td style="font-family:monospace;font-size:9px;">${esc(ed.utr)}</td>
           <td style="text-align:right;">${fmtINR(gst.base)}</td>
           <td style="text-align:center;">1</td>
           <td style="text-align:right;">${fmtINR(gst.base)}</td>
@@ -1197,7 +1187,7 @@ function buildInvoiceHTMLFromEdits(ed) {
         </tr>
       </tbody>
       <tfoot><tr>
-        <td colspan="9" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
+        <td colspan="8" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
         <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td>
       </tr></tfoot>
     </table>
@@ -1260,7 +1250,7 @@ function showPreviewModal(row) {
 }
 
 /* ═══════════════════════════════════════════════
-   BUILD PDF (with real GST)
+   BUILD PDF (UTR Number column removed)
 ═══════════════════════════════════════════════ */
 function buildPDF(row, profile, invNum) {
   const { jsPDF } = window.jspdf;
@@ -1278,7 +1268,6 @@ function buildPDF(row, profile, invNum) {
   const words   = numWords(gst.total);
   const invDate = parseDate(new Date());
   const txDate  = parseDate(row['Transaction Date']);
-  const utr     = row['Transaction UTR Number'] || '';
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const txRef   = row['Transaction Reference Number'] || '';
   const txType  = row['Transaction Type'] || 'COLLECTION';
@@ -1328,37 +1317,34 @@ function buildPDF(row, profile, invNum) {
   if(billPAN) { doc.text(`PAN: ${billPAN}`,L,ly); ly+=4; }
   y = Math.max(ly,ry)+4;
 
-  // Tax columns based on same/diff state
   const taxRateCol = `${gst.rate}%`;
   const taxTypeCol = gst.taxType;
   const taxAmtCol  = fmtINR(gst.taxAmt);
 
   doc.autoTable({
     startY: y,
-    head:[['SI.No','Description','UTR Number','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
+    head:[['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
     body:[[
       '1',
       `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,
-      utr,
       fmtINR(gst.base), '1', fmtINR(gst.base),
       taxRateCol, taxTypeCol, taxAmtCol, fmtINR(gst.total)
     ]],
-    foot:[['','','','','','','','','TOTAL:', fmtINR(gst.total)]],
+    foot:[['','','','','','','','TOTAL:', fmtINR(gst.total)]],
     margin:{left:L, right:14},
     styles:{fontSize:8, overflow:'linebreak', cellPadding:3},
     headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
     footStyles:{fillColor:[240,240,240],fontStyle:'bold'},
     columnStyles:{
-      0:{cellWidth:8},  1:{cellWidth:38}, 2:{cellWidth:26},
-      3:{cellWidth:18,halign:'right'}, 4:{cellWidth:8,halign:'center'},
-      5:{cellWidth:18,halign:'right'}, 6:{cellWidth:12,halign:'center'},
-      7:{cellWidth:14,halign:'center'},8:{cellWidth:14,halign:'right'},
-      9:{cellWidth:20,halign:'right'},
+      0:{cellWidth:8},  1:{cellWidth:54},
+      2:{cellWidth:22,halign:'right'}, 3:{cellWidth:8,halign:'center'},
+      4:{cellWidth:22,halign:'right'}, 5:{cellWidth:14,halign:'center'},
+      6:{cellWidth:16,halign:'center'},7:{cellWidth:16,halign:'right'},
+      8:{cellWidth:24,halign:'right'},
     }
   });
   y = doc.lastAutoTable.finalY + 5;
 
-  // Totals block
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   if(gst.isSame) {
     doc.text(`Base Amount: ${fmtINR(gst.base)}`, R, y, {align:'right'}); y+=4.5;
@@ -1400,7 +1386,7 @@ function buildPDF(row, profile, invNum) {
 }
 
 /* ═══════════════════════════════════════════════
-   BUILD DOCX (with real GST)
+   BUILD DOCX (UTR Number column removed)
 ═══════════════════════════════════════════════ */
 function wP(t, opts={}) {
   const bold  = opts.bold  ? '<w:b/>' : '';
@@ -1433,7 +1419,6 @@ async function buildDOCX(row, profile, invNum) {
   const words   = numWords(gst.total);
   const invDate = parseDate(new Date());
   const txDate  = parseDate(row['Transaction Date']);
-  const utr     = row['Transaction UTR Number'] || '';
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const txRef   = row['Transaction Reference Number'] || '';
   const txType  = row['Transaction Type'] || 'COLLECTION';
@@ -1460,18 +1445,16 @@ async function buildDOCX(row, profile, invNum) {
   );
   body += wP('');
   body += wTable(
-    wTR(['SI.No','Description','UTR Number','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8}) +
+    wTR(['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8}) +
     wTR([
       '1',
       `Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,
-      utr,
       fmtINR(gst.base), '1', fmtINR(gst.base),
       `${gst.rate}%`, gst.taxType, fmtINR(gst.taxAmt), fmtINR(gst.total)
     ],{size:8}) +
-    wTR(['','','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8})
+    wTR(['','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8})
   );
   body += wP('');
-  // Totals breakdown
   body += wP(`Base Amount: ${fmtINR(gst.base)}`, {size:9,align:'right'});
   if(gst.isSame) {
     body += wP(`CGST @ ${gst.rate/2}%: ${fmtINR(gst.cgst)}`, {size:9,align:'right'});
@@ -1716,7 +1699,7 @@ async function loadInvoices() {
 }
 
 /* ═══════════════════════════════════════════════
-   PAGE: SELLER SETUP  (+ Default GST Rate)
+   PAGE: SELLER SETUP
 ═══════════════════════════════════════════════ */
 function viewSettings() {
   const c = S.company || {};
