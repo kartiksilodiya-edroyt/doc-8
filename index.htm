@@ -692,6 +692,14 @@ function getProfileLogo(profile) {
    Profile). Add/adjust the header strings inside each pick(...) call
    below so they match your real Fidypay export column names exactly —
    the matching is case-sensitive against XLSX.utils.sheet_to_json keys.
+
+   NOTE: The Fidypay export carries the actual payer/customer's name in a
+   column literally called "Name" (and their address in "Address") — this
+   is the PERSON, not the merchant/company in "Seller Name". Billing &
+   Shipping name/address are now sourced from "Name"/"Address" first, with
+   other header variants kept as fallbacks for differently named exports,
+   and only falling back to the Seller (company) name if no person name
+   is present on the row at all.
 ═══════════════════════════════════════════════ */
 function extractAddressFieldsFromRow(row) {
   const pick = (...keys) => {
@@ -701,9 +709,11 @@ function extractAddressFieldsFromRow(row) {
     return '';
   };
 
-  // BILLING — adjust these header names to match your Excel columns
-  const billName    = pick('Billing Name','Bill To Name','Buyer Name','Billing Customer Name','Customer Name');
-  const billAddress = pick('Billing Address','Bill To Address','Buyer Address','Billing Address Line','Address');
+  // BILLING — "Name" / "Address" are the actual Fidypay export columns for
+  // the person; other variants are kept as fallbacks for differently
+  // named exports. Adjust header names here if your export differs.
+  const billName    = pick('Name','Billing Name','Bill To Name','Buyer Name','Billing Customer Name','Customer Name');
+  const billAddress = pick('Address','Billing Address','Bill To Address','Buyer Address','Billing Address Line');
   const billCity     = pick('Billing City','Bill City','City');
   const billState    = pick('Billing State','Bill State','State');
   const billPin      = pick('Billing Pincode','Billing PIN','Bill Pincode','Pincode','PIN Code','PIN');
@@ -716,6 +726,11 @@ function extractAddressFieldsFromRow(row) {
   const shipCity     = pick('Shipping City','Ship City','Delivery City');
   const shipState    = pick('Shipping State','Ship State','Delivery State');
   const shipPin      = pick('Shipping Pincode','Shipping PIN','Ship Pincode','Delivery Pincode');
+
+  // Product / Item description — optional column that, if present in the
+  // uploaded Excel, is shown as the invoice line-item description instead
+  // of the generic "Settlement COLLECTION — Record ID: ..." text.
+  const productDesc = pick('Product Description','Product Desc','Description','Item Description','Item','Product','Product Name','Service Description');
 
   // Only set when the row doesn't already carry a manual edit (so re-uploading
   // never clobbers a value someone fixed by hand in the Edit modal).
@@ -732,6 +747,8 @@ function extractAddressFieldsFromRow(row) {
   if(!row['_shipCity'])    row['_shipCity']    = shipCity    || row['_billCity'];
   if(!row['_shipState'])   row['_shipState']   = shipState   || row['_billState'];
   if(!row['_shipPin'])     row['_shipPin']     = shipPin     || row['_billPin'];
+
+  if(!row['_description']) row['_description'] = productDesc;
 
   return row;
 }
@@ -1067,6 +1084,7 @@ function buildInvoiceHTML(row, profile, invNum) {
   const coName      = co.name || '';
   const coAddr      = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
   const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
+  const lineDesc    = row['_description'] || ('Settlement '+esc(txType)+' — Record ID: '+esc(String(settlementRecId)));
 
   const totalsRows = gst.isSame
     ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
@@ -1112,7 +1130,7 @@ function buildInvoiceHTML(row, profile, invNum) {
       <tbody><tr>
         <td>1</td>
         <td style="min-width:160px;">
-          ${row['_description'] || ('Settlement '+esc(txType)+' — Record ID: '+esc(String(settlementRecId)))}<br>
+          ${esc(lineDesc)}<br>
           <span style="color:#666;font-size:9px;">Ref: ${esc(txRef)}</span>
         </td>
         <td style="text-align:right;">${fmtINR(gst.base)}</td>
@@ -1275,7 +1293,7 @@ function showEditModal(rowIdx) {
     const fullBillAddr = [edits.billAddress,edits.billCity,edits.billState,edits.billPin].filter(Boolean).join(', ');
     const fullShipAddr = [edits.shipAddress,edits.shipCity,edits.shipState,edits.shipPin].filter(Boolean).join(', ');
     const logoSrc = edits.logoB64 || edits.logoUrl || getProfileLogo(profile) || getLogoSrc();
-    const desc = edits.description || ('Settlement '+(edits.txType||'COLLECTION')+' — Record ID: '+esc(edits.settlementId));
+    const desc = esc(edits.description || ('Settlement '+(edits.txType||'COLLECTION')+' — Record ID: '+esc(edits.settlementId)));
     const totalsRows = gst.isSame
       ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
       : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
@@ -1431,6 +1449,7 @@ async function buildPDF(row, profile, invNum) {
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const txRef   = row['Transaction Reference Number'] || '';
   const txType  = row['Transaction Type'] || 'COLLECTION';
+  const lineDesc = row['_description'] || `Settlement ${txType}`;
   let logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
   if(logoSrc && !logoSrc.startsWith('data:')) {
     const dataUrl = await urlToDataURL(logoSrc);
@@ -1478,7 +1497,7 @@ async function buildPDF(row, profile, invNum) {
   doc.autoTable({
     startY: y,
     head:[['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
-    body:[['1',`Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)]],
+    body:[['1',`${lineDesc}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)]],
     foot:[['','','','','','','','TOTAL:',fmtINR(gst.total)]],
     margin:{left:L, right:14},
     styles:{fontSize:8, overflow:'linebreak', cellPadding:3},
@@ -1552,6 +1571,7 @@ async function buildDOCX(row, profile, invNum) {
   const words = numWords(gst.total); const invDate = parseDate(new Date()); const txDate = parseDate(row['Transaction Date']);
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const txRef = row['Transaction Reference Number'] || ''; const txType = row['Transaction Type'] || 'COLLECTION';
+  const lineDesc = row['_description'] || `Settlement ${txType}`;
   const billGST = row['_billGST'] || p.gst || ''; const billPAN = row['_billPAN'] || p.pan || '';
   let body = '';
   body += wP('Tax Invoice',{bold:true,size:14}); body += wP('(Original for Recipient)',{size:9}); body += wP('');
@@ -1560,7 +1580,7 @@ async function buildDOCX(row, profile, invNum) {
   body += wP('');
   body += wTable(wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8})+wTR([[merchantName,fullBillAddr,billGST?`GST: ${billGST}`:'',billPAN?`PAN: ${billPAN}`:''].filter(Boolean).join('\n'),[shipName,fullShipAddr].filter(Boolean).join('\n')],{size:9}));
   body += wP('');
-  body += wTable(wTR(['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8})+wTR(['1',`Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)],{size:8})+wTR(['','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8}));
+  body += wTable(wTR(['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8})+wTR(['1',`${lineDesc}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)],{size:8})+wTR(['','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8}));
   body += wP(''); body += wP(`Base Amount: ${fmtINR(gst.base)}`,{size:9,align:'right'});
   if(gst.isSame) { body += wP(`CGST @ ${gst.rate/2}%: ${fmtINR(gst.cgst)}`,{size:9,align:'right'}); body += wP(`SGST @ ${gst.rate/2}%: ${fmtINR(gst.sgst)}`,{size:9,align:'right'}); }
   else { body += wP(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`,{size:9,align:'right'}); }
