@@ -1059,11 +1059,13 @@ function buildInvoiceHTML(row, profile, invNum) {
   const txDate      = parseDate(row['Transaction Date']);
   const invDate     = txDate; 
 
-  const coName = p.name ? p.name : (co.name || '');
-  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const coPan  = p.pan ? p.pan : (co.pan || '');
-  const coGst  = p.gst ? p.gst : (co.gst || '');
-  const coCin  = p.cin ? p.cin : (co.cin || '');
+ // Strict Profile Matching Logic
+  const isProfile = !!p.name;
+  const coName = isProfile ? p.name : (co.name || '');
+  const coAddr = isProfile ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPan  = isProfile ? (p.pan || '') : (co.pan || '');
+  const coGst  = isProfile ? (p.gst || '') : (co.gst || '');
+  const coCin  = isProfile ? (p.cin || '') : (co.cin || '');
   const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
 
   const totalsRows = gst.isSame
@@ -1605,10 +1607,14 @@ async function buildDOCX(row, profile, invNum) {
    PAGE: MERCHANT PROFILES
 ═══════════════════════════════════════════════ */
 function matchProfile(profile, sellerName) {
-  if(!profile||!sellerName) return false;
-  const a = profile.name.toLowerCase().trim();
-  const b = (sellerName||'').toLowerCase().trim();
-  return a===b || a.includes(b) || b.includes(a);
+  if(!profile || !sellerName) return false;
+  const a = String(profile.name || '').toLowerCase().trim();
+  const b = String(sellerName || '').toLowerCase().trim();
+  
+  // Empty string check takki galat profile match na ho
+  if(!a || !b) return false; 
+  
+  return a === b || a.includes(b) || b.includes(a);
 }
 
 function viewProfiles() {
