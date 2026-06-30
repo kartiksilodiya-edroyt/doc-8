@@ -1472,17 +1472,21 @@ async function buildPDF(row, profile, invNum) {
   if(billGST) { doc.setFont('helvetica','bold'); doc.text(`GST: ${billGST}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
   if(billPAN) { doc.setFont('helvetica','bold'); doc.text(`PAN: ${billPAN}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
   y = Math.max(ly,ry)+4;
+ 
+  const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
   doc.autoTable({
     startY: y,
-    head:[['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
-    body:[['1',customDesc,fmtINRPdf(gst.base),'1',fmtINRPdf(gst.base),`${gst.rate}%`,gst.taxType,fmtINRPdf(gst.taxAmt),fmtINRPdf(gst.total)]],
+    head:[['Sl. No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
+    body:[['1',customDesc,fmtINRPdf(gst.base),'1',fmtINRPdf(gst.base),`${gst.rate}%`,gst.taxType,formatNumOnly(gst.taxAmt),fmtINRPdf(gst.total)]],
     foot:[['','','','','','','','TOTAL:',fmtINRPdf(gst.total)]],
     margin:{left:L, right:14},
     styles:{fontSize:8, overflow:'linebreak', cellPadding:3, textColor:30},
     headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
     footStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:48},2:{cellWidth:24,halign:'right'},3:{cellWidth:8,halign:'center'},4:{cellWidth:24,halign:'right'},5:{cellWidth:14,halign:'center'},6:{cellWidth:16,halign:'center'},7:{cellWidth:18,halign:'right'},8:{cellWidth:22,halign:'right'}}
+    columnStyles:{0:{cellWidth:12},1:{cellWidth:40},2:{cellWidth:24,halign:'right'},3:{cellWidth:12,halign:'center'},4:{cellWidth:24,halign:'right'},5:{cellWidth:14,halign:'center'},6:{cellWidth:16,halign:'center'},7:{cellWidth:18,halign:'right'},8:{cellWidth:22,halign:'right'}}
   });
+
   y = doc.lastAutoTable.finalY + 5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   if(gst.isSame) {
