@@ -583,7 +583,7 @@
       background: #fff;
       color: #111;
       border-radius: 8px;
-       padding:40px 48px;
+      padding: 40px 48px;
       max-width: 760px;
       margin: 0 auto;
       box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
@@ -616,6 +616,11 @@
       font-weight: 900;
       color: #111;
       letter-spacing: -0.5px;
+      text-align: right;
+      max-width: 220px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-start;
     }
 
     .inv-paper .inv-meta {
@@ -626,7 +631,10 @@
     }
 
     .inv-paper .inv-meta div {
-      margin-bottom: 2px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-bottom: 3px;
     }
 
     .inv-paper hr.inv-rule {
@@ -641,14 +649,21 @@
       margin: 18px 0;
     }
 
-    .inv-paper .inv-addr-row {
+    .inv-paper .inv-addr-stack {
       display: flex;
-      gap: 32px;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
       margin: 14px 0;
     }
 
-    .inv-paper .inv-addr-col {
-      flex: 1;
+    .inv-paper .inv-addr-block {
+      max-width: 60%;
+    }
+
+    .inv-paper .inv-addr-block.ship {
+      text-align: right;
     }
 
     .inv-paper .inv-addr-label {
@@ -658,12 +673,15 @@
       letter-spacing: 0.5px;
       color: #777;
       margin-bottom: 5px;
+      border-bottom: 1px solid #e2e2e2;
+      padding-bottom: 4px;
     }
 
     .inv-paper .inv-addr-body {
       font-size: 10.5px;
       color: #222;
       line-height: 1.75;
+      word-break: break-word;
     }
 
     .inv-paper .inv-addr-body b {
@@ -675,25 +693,48 @@
       border-collapse: collapse;
       margin: 12px 0;
       font-size: 10px;
+      table-layout: fixed;
     }
 
     table.inv-table th {
       background: #f2f2f2;
       border: 1px solid #ccc;
-      padding: 9px 10px;
-      text-align: left;
+      padding: 9px 8px;
+      text-align: center;
       font-weight: 700;
       font-size: 9.5px;
     }
 
+    table.inv-table th:nth-child(2) {
+      text-align: left;
+    }
+
     table.inv-table td {
       border: 1px solid #ddd;
-      padding: 10px 10px;
+      padding: 9px 8px;
       vertical-align: top;
+      text-align: center;
+    }
+
+    table.inv-table td:nth-child(2) {
+      text-align: left;
+    }
+
+    table.inv-table td:nth-child(3),
+    table.inv-table td:nth-child(5),
+    table.inv-table td:nth-child(8),
+    table.inv-table td:nth-child(9) {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
 
     table.inv-table tr:nth-child(even) td {
       background: #fafafa;
+    }
+
+    table.inv-table tfoot td {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
 
     .inv-totals {
@@ -704,24 +745,35 @@
     }
 
     .inv-totals td {
-      padding: 4px 8px;
+      padding: 5px 8px;
       font-size: 10px;
       border: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .inv-totals td:first-child {
+      text-align: left;
+      color: #444;
+    }
+
+    .inv-totals td:last-child {
+      text-align: right;
+      font-weight: 600;
     }
 
     .inv-totals .total-final td {
       font-weight: 800;
       font-size: 12px;
       border-top: 2px solid #111;
-      padding-top: 6px;
+      padding-top: 7px;
     }
 
     .inv-words {
       font-size: 10.5px;
       background: #f9f9f9;
       border: 1px solid #ddd;
-         padding:12px 16px;
-    margin-top:18px;
+      padding: 12px 16px;
+      margin-top: 18px;
       border-radius: 4px;
       margin: 8px 0;
     }
@@ -740,15 +792,18 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-top:28px;
-    padding-top:18px;
+      margin-top: 28px;
+      padding-top: 18px;
       border-top: 1px solid #ddd;
+      gap: 24px;
     }
 
     .inv-sold-by {
       font-size: 9.5px;
       color: #333;
       line-height: 1.7;
+      flex: 1;
+      min-width: 0;
     }
 
     .inv-sold-by .co-name {
@@ -762,6 +817,8 @@
       text-align: right;
       font-size: 9.5px;
       color: #555;
+      flex-shrink: 0;
+      min-width: 150px;
     }
 
     .inv-sign .sig-line {
@@ -776,6 +833,28 @@
       font-weight: 700;
       font-size: 11px;
       color: #111;
+    }
+
+    .inv-transaction-info {
+      margin: 14px 0;
+      padding: 10px 14px;
+      border: 1px solid #d8d8d8;
+      background: #fafafa;
+      border-radius: 6px;
+      line-height: 1.8;
+      font-size: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 16px;
+    }
+
+    .inv-shipping-box {
+      margin-top: 14px;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid #dcdcdc;
+      border-radius: 6px;
+      background: #fff;
     }
 
     .results-grid {
@@ -943,25 +1022,6 @@
         display: block !important;
       }
     }
-
-    .inv-transaction-info{
-    margin:18px 0;
-    padding:10px 14px;
-    border:1px solid #d8d8d8;
-    background:#fafafa;
-    border-radius:6px;
-    line-height:1.7;
-    font-size:10px;
-}
-
-.inv-shipping-box{
-    margin-top:18px;
-    margin-bottom:24px;
-    padding:12px 14px;
-    border:1px solid #dcdcdc;
-    border-radius:6px;
-    background:#fff;
-}
   </style>
 </head>
 
@@ -1361,27 +1421,22 @@
     }
 
     /* ═══════════════════════════════════════════════
-       UPDATED INVOICE GENERATOR & PROCESSOR BLOCK
+       INVOICE NUMBER / FILE NAME GENERATION
     ═══════════════════════════════════════════════ */
     function genInvNum(row) {
       if (row['_invNum']) return row['_invNum'];
 
-      // Grab the full Seller Settlement Records ID
       let settlementId = String(row['Seller Settlement Records ID'] || '').trim();
 
-      // Fallback to slice dynamic UUID if settlement ID is completely missing
       if (!settlementId) {
         let baseId = String(uid()).slice(-8);
         return 'INV-' + baseId;
       }
 
-      // Swapping the prefix out if it matches the '41' rule
       if (settlementId.startsWith('41')) {
         const now = new Date();
-        const mm = String(now.getMonth() + 1).padStart(2, '0'); // "06"
-        const yy = String(now.getFullYear()).slice(-2);       // "26"
-
-        // Replaces the first 4 characters with the current MMYY ('0626')
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yy = String(now.getFullYear()).slice(-2);
         settlementId = mm + yy + settlementId.slice(4);
       }
 
@@ -1411,8 +1466,6 @@
       return profile.logoUrl || profile.logoB64 || null;
     }
 
-    /* File/storage name — always INV-{raw Settlement Record ID}, regardless of
-       any MMYY-prefix swap or manual edits applied to the on-document invoice number. */
     function sanitizeFileBase(s) {
       return String(s || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
     }
@@ -1423,7 +1476,7 @@
     }
 
     /* ═══════════════════════════════════════════════
-       EXCEL → FIELD MAPPING REFACTOR
+       EXCEL → FIELD MAPPING
     ═══════════════════════════════════════════════ */
     function extractAddressFieldsFromRow(row) {
       const pick = (...keys) => {
@@ -1433,7 +1486,6 @@
         return '';
       };
 
-      // Prioritized 'Product List' header map above everything else
       const productDesc = pick('Product List', 'Product Description', 'Item Description', 'Description', 'Product Details', 'Transaction Type');
       const personName = pick('Name', 'Customer Name', 'Billing Name', 'Bill To Name', 'Buyer Name');
 
@@ -1756,7 +1808,7 @@
     }
 
     /* ═══════════════════════════════════════════════
-       INVOICE HTML BUILDER
+       INVOICE HTML BUILDER (single source of truth)
     ═══════════════════════════════════════════════ */
     function buildInvoiceHTML(row, profile, invNum) {
       const co = S.company || {};
@@ -1785,7 +1837,6 @@
       const txDate = parseDate(row['Transaction Date']);
       const invDate = txDate;
 
-      // Strict Profile Matching Logic
       const isProfile = !!p.name;
       const coName = isProfile ? p.name : (co.name || '');
       const coAddr = isProfile ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
@@ -1795,11 +1846,11 @@
       const logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
 
       const totalsRows = gst.isSame
-        ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
-       <tr><td>CGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
-       <tr><td>SGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
-        : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
-       <tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
+        ? `<tr><td>Base Amount</td><td>${fmtINR(gst.base)}</td></tr>
+       <tr><td>CGST @ ${gst.rate / 2}%</td><td>${fmtINR(gst.cgst)}</td></tr>
+       <tr><td>SGST @ ${gst.rate / 2}%</td><td>${fmtINR(gst.sgst)}</td></tr>`
+        : `<tr><td>Base Amount</td><td>${fmtINR(gst.base)}</td></tr>
+       <tr><td>IGST @ ${gst.rate}%</td><td>${fmtINR(gst.igst)}</td></tr>`;
 
       return `<div class="inv-paper">
     <div class="inv-top">
@@ -1814,8 +1865,8 @@
       <div><b>Invoice Date:</b> ${esc(invDate)}</div>
       <div><b>Transaction Date:</b> ${esc(txDate)}</div>
     </div>
-    <div class="inv-addr-row">
-      <div class="inv-addr-col">
+    <div class="inv-addr-stack">
+      <div class="inv-addr-block">
         <div class="inv-addr-label">Billing Address</div>
         <div class="inv-addr-body">
           <b>${esc(merchantName)}</b><br>
@@ -1824,38 +1875,38 @@
           ${merchantPAN ? `<b>PAN: ${esc(merchantPAN)}</b><br>` : ''}
         </div>
       </div>
-      <div class="inv-addr-col">
-        <div class="inv-addr-label">Shipping Address</div>
+      <div class="inv-addr-block ship">
+        <div class="inv-addr-label">Shipping Address:</div>
         <div class="inv-addr-body"><b>${esc(shipName)}</b><br>${fullShipAddr ? wrapAddressLines(fullShipAddr) : '—'}</div>
       </div>
     </div>
     <table class="inv-table">
       <thead><tr>
-        <th>SI.No</th><th>Description</th><th>Unit Price</th><th>QTY</th>
-        <th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th>
+        <th style="width:7%;">SI.No</th><th style="width:24%;">Description</th><th style="width:11%;">Unit Price</th><th style="width:6%;">QTY</th>
+        <th style="width:12%;">Net Amount</th><th style="width:9%;">Tax Rate</th><th style="width:13%;">Tax Type</th><th style="width:9%;">Tax Amount</th><th style="width:9%;">Total Amount</th>
       </tr></thead>
       <tbody><tr>
         <td>1</td>
-        <td style="min-width:160px;">
+        <td>
           <b style="font-size:11px;color:#111;">${row['_description'] ? esc(row['_description']) : 'Settlement Pay'}</b>
         </td>
-        <td style="text-align:right;">${fmtINR(gst.base)}</td>
-        <td style="text-align:center;">1</td>
-        <td style="text-align:right;">${fmtINR(gst.base)}</td>
-        <td style="text-align:center;">${gst.rate}%</td>
-        <td style="text-align:center;">${gst.taxType}</td>
-        <td style="text-align:right;">${fmtINR(gst.taxAmt)}</td>
-        <td style="text-align:right;font-weight:700;">${fmtINR(gst.total)}</td>
+        <td>${fmtINR(gst.base)}</td>
+        <td>1</td>
+        <td>${fmtINR(gst.base)}</td>
+        <td>${gst.rate}%</td>
+        <td>${gst.taxType}</td>
+        <td>${fmtINR(gst.taxAmt)}</td>
+        <td style="font-weight:700;">${fmtINR(gst.total)}</td>
       </tr></tbody>
       <tfoot><tr>
-        <td colspan="8" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td>
-        <td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td>
+        <td colspan="8" style="font-weight:700;background:#f2f2f2;">TOTAL:</td>
+        <td style="font-weight:800;background:#f2f2f2;">${fmtINR(gst.total)}</td>
       </tr></tfoot>
     </table>
     <div style="display:flex;justify-content:flex-end;">
       <table class="inv-totals">
         ${totalsRows}
-        <tr class="total-final"><td><b>Total</b></td><td style="text-align:right;"><b>${fmtINR(gst.total)}</b></td></tr>
+        <tr class="total-final"><td><b>Total</b></td><td><b>${fmtINR(gst.total)}</b></td></tr>
       </table>
     </div>
     <div class="inv-words"><b>Amount in Words:</b> ${esc(words)}</div>
@@ -1899,7 +1950,6 @@
         description: row['_description'] || '',
         gstRate: cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18),
         billName: row['_billName'] || (profile && profile.name) || '',
-        textFields: row['_billAddress'] || (profile && profile.address) || '',
         billAddress: row['_billAddress'] || (profile && profile.address) || '',
         billCity: row['_billCity'] || (profile && profile.city) || '',
         billState: row['_billState'] || (profile && profile.state) || '',
@@ -1993,17 +2043,21 @@
           : `🚀 <b>Inter-State</b> → IGST<br>Base: <b>${fmtINR(g.base)}</b> | IGST: <b>${fmtINR(g.igst)}</b><br>Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`;
       }
 
+      /* Live preview reuses the exact same markup structure as buildInvoiceHTML
+         so the modal preview always matches what gets generated. Every value
+         is read from the `edits` object (or row/profile fallbacks) — nothing
+         here references undefined variables. */
       function buildPreviewFromEdits() {
         const co = S.company || {};
+        const p = profile || {};
         const gst = calcGST(edits.amount, edits.gstRate, co.state || '', edits.billState || '');
         const fullBillAddr = [edits.billAddress, edits.billCity, edits.billState, edits.billPin].filter(Boolean).join(', ');
         const fullShipAddr = [edits.shipAddress, edits.shipCity, edits.shipState, edits.shipPin].filter(Boolean).join(', ');
         const logoSrc = edits.logoB64 || edits.logoUrl || getProfileLogo(profile) || getLogoSrc();
         const desc = edits.description || 'Settlement Pay';
         const totalsRows = gst.isSame
-          ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
-          : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
-        const p = profile || {};
+          ? `<tr><td>Base Amount</td><td>${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate / 2}%</td><td>${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate / 2}%</td><td>${fmtINR(gst.sgst)}</td></tr>`
+          : `<tr><td>Base Amount</td><td>${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td>${fmtINR(gst.igst)}</td></tr>`;
         const coName = p.name ? p.name : (co.name || '');
         const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
         const coPan = p.pan ? p.pan : (co.pan || '');
@@ -2020,50 +2074,33 @@
         <div><b>Invoice Date:</b> ${esc(edits.txDate)}</div>
         <div><b>Transaction Date:</b> ${esc(edits.txDate)}</div>
       </div>
-      <div class="inv-addr-row">
-        <!-- Billing Address -->
-<div class="inv-addr-row">
-  <div class="inv-addr-col">
-    <div class="inv-addr-label">Billing Address</div>
-
-    <div class="inv-addr-body">
-      <b>${esc(merchantName)}</b><br>
-
-      ${fullBillAddr ? wrapAddressLines(fullBillAddr) + '<br>' : ''}
-
-      ${merchantGST ? `<b>GST:</b> ${esc(merchantGST)}<br>` : ''}
-
-      ${merchantPAN ? `<b>PAN:</b> ${esc(merchantPAN)}` : ''}
-    </div>
-  </div>
-</div>
-
-<!-- Transaction Details -->
-<div class="inv-transaction-info">
-    <div><b>Transaction Date:</b> ${esc(txDate)}</div>
-    <div><b>Settlement ID:</b> ${esc(row['Seller Settlement Records ID'] || '')}</div>
-    <div><b>UTR Number:</b> ${esc(row['Transaction UTR Number'] || '')}</div>
-</div>
-
-<!-- Shipping Address -->
-<div class="inv-shipping-box">
-    <div class="inv-addr-label">Shipping Address</div>
-
-    <div class="inv-addr-body">
-        <b>${esc(shipName)}</b><br>
-        ${fullShipAddr ? wrapAddressLines(fullShipAddr) : '—'}
-    </div>
-</div>
-
-<table class="inv-table">
+      <div class="inv-addr-stack">
+        <div class="inv-addr-block">
+          <div class="inv-addr-label">Billing Address</div>
+          <div class="inv-addr-body">
+            <b>${esc(edits.billName)}</b><br>
+            ${fullBillAddr ? wrapAddressLines(fullBillAddr) + '<br>' : ''}
+            ${edits.billGST ? `<b>GST: ${esc(edits.billGST)}</b><br>` : ''}
+            ${edits.billPAN ? `<b>PAN: ${esc(edits.billPAN)}</b><br>` : ''}
+          </div>
+        </div>
+        <div class="inv-addr-block ship">
+          <div class="inv-addr-label">Shipping Address:</div>
+          <div class="inv-addr-body"><b>${esc(edits.shipName)}</b><br>${fullShipAddr ? wrapAddressLines(fullShipAddr) : '—'}</div>
+        </div>
       </div>
-      <table class="inv-table"><thead><tr><th>SI.No</th><th>Description</th><th>Unit Price</th><th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th></tr></thead>
-      <tbody><tr><td>1</td><td><b>${esc(desc)}</b></td>
-      <td style="text-align:right;">${fmtINR(gst.base)}</td><td style="text-align:center;">1</td><td style="text-align:right;">${fmtINR(gst.base)}</td>
-      <td style="text-align:center;">${gst.rate}%</td><td style="text-align:center;">${gst.taxType}</td><td style="text-align:right;">${fmtINR(gst.taxAmt)}</td>
-      <td style="text-align:right;font-weight:700;">${fmtINR(gst.total)}</td></tr></tbody>
-      <tfoot><tr><td colspan="8" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td><td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td></tr></tfoot></table>
-      <div style="display:flex;justify-content:flex-end;"><table class="inv-totals">${totalsRows}<tr class="total-final"><td><b>Total</b></td><td style="text-align:right;"><b>${fmtINR(gst.total)}</b></td></tr></table></div>
+      <table class="inv-table">
+        <thead><tr>
+          <th style="width:7%;">SI.No</th><th style="width:24%;">Description</th><th style="width:11%;">Unit Price</th><th style="width:6%;">QTY</th>
+          <th style="width:12%;">Net Amount</th><th style="width:9%;">Tax Rate</th><th style="width:13%;">Tax Type</th><th style="width:9%;">Tax Amount</th><th style="width:9%;">Total Amount</th>
+        </tr></thead>
+        <tbody><tr><td>1</td><td><b>${esc(desc)}</b></td>
+        <td>${fmtINR(gst.base)}</td><td>1</td><td>${fmtINR(gst.base)}</td>
+        <td>${gst.rate}%</td><td>${gst.taxType}</td><td>${fmtINR(gst.taxAmt)}</td>
+        <td style="font-weight:700;">${fmtINR(gst.total)}</td></tr></tbody>
+        <tfoot><tr><td colspan="8" style="font-weight:700;background:#f2f2f2;">TOTAL:</td><td style="font-weight:800;background:#f2f2f2;">${fmtINR(gst.total)}</td></tr></tfoot>
+      </table>
+      <div style="display:flex;justify-content:flex-end;"><table class="inv-totals">${totalsRows}<tr class="total-final"><td><b>Total</b></td><td><b>${fmtINR(gst.total)}</b></td></tr></table></div>
       <div class="inv-words"><b>Amount in Words:</b> ${esc(numWords(gst.total))}</div>
       ${coName ? `<div class="inv-from">From ${esc(coName)}</div>` : ''}
       <hr class="inv-rule-light">
@@ -2198,6 +2235,7 @@
       // jsPDF's built-in Helvetica font has no glyph for ₹ — it renders as garbled
       // characters. Use an ASCII-safe "Rs." prefix for all PDF currency text instead.
       const fmtINRPdf = n => 'Rs. ' + cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
       let logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
       if (logoSrc && !logoSrc.startsWith('data:')) {
@@ -2205,101 +2243,123 @@
         if (dataUrl) logoSrc = dataUrl;
       }
 
+      /* ---- Header row: title left, logo/name right, both baseline-aligned ---- */
       doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
       doc.text('Tax Invoice', L, y);
       if (logoSrc && logoSrc.startsWith('data:')) {
         try {
           const mime = logoSrc.split(';')[0].split(':')[1] || 'image/png';
           const imgType = mime.includes('jpeg') ? 'JPEG' : 'PNG';
-          doc.addImage(logoSrc, imgType, R - 45, y - 8, 45, 16, undefined, 'FAST');
-        } catch (e) { doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(coName, R, y, { align: 'right' }); }
+          doc.addImage(logoSrc, imgType, R - 45, y - 9, 45, 16, undefined, 'FAST');
+        } catch (e) { doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text(coName, R, y, { align: 'right' }); }
       } else if (coName) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text(coName, R, y, { align: 'right' });
       }
       y += 5; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
       doc.text('(Original for Recipient)', L, y);
-      y += 3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 4;
+      y += 3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 5;
 
+      /* ---- Meta block: right-aligned, consistent line height ---- */
       [`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`, `Transaction Date: ${txDate}`]
-        .forEach(l => { doc.text(l, R, y, { align: 'right' }); y += 4.5; });
-      y += 2;
-      let ly = y, ry = y;
+        .forEach(l => { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.text(l, R, y, { align: 'right' }); y += 4.5; });
+      y += 3;
+
+      /* ---- Billing address (left side) + Shipping address (right side), same row ---- */
+      const blockX = L, blockWidth = 95;
+      const shipBlockRightX = R, shipBlockWidth = 95;
+      const billStartY = y;
+
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-      doc.text('BILLING ADDRESS', L, ly); doc.text('SHIPPING ADDRESS', 110, ry);
-      ly += 5; ry += 5;
+      doc.text('BILLING ADDRESS', blockX, y);
+      let shipY = y;
+      doc.text('SHIPPING ADDRESS:', shipBlockRightX, shipY, { align: 'right' });
+      y += 5; shipY += 5;
+
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-      doc.text(merchantName || '—', L, ly); doc.text(shipName || '—', 110, ry);
-      ly += 4.5; ry += 4.5;
+      doc.text(merchantName || '—', blockX, y);
+      doc.text(shipName || '—', shipBlockRightX, shipY, { align: 'right' });
+      y += 4.5; shipY += 4.5;
+
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-      if (fullBillAddr) {
-        const ls = doc.splitTextToSize(fullBillAddr, 90);
-        doc.text(ls, L, ly); ly += ls.length * 4;
-      }
-      if (fullShipAddr) {
-        const rs = doc.splitTextToSize(fullShipAddr, 90);
-        doc.text(rs, 110, ry); ry += rs.length * 4;
-      }
+      let billLines = [], shipLines = [];
+      if (fullBillAddr) billLines = doc.splitTextToSize(fullBillAddr, blockWidth);
+      if (fullShipAddr) shipLines = doc.splitTextToSize(fullShipAddr, shipBlockWidth);
+      if (billLines.length) doc.text(billLines, blockX, y);
+      shipLines.forEach((line, idx) => doc.text(line, shipBlockRightX, shipY + idx * 4, { align: 'right' }));
+      y += billLines.length * 4; shipY += shipLines.length * 4;
+
       const billGST = row['_billGST'] || p.gst || '';
       const billPAN = row['_billPAN'] || p.pan || '';
-      if (billGST) { doc.setFont('helvetica', 'bold'); doc.text(`GST: ${billGST}`, L, ly); doc.setFont('helvetica', 'normal'); ly += 4; }
-      if (billPAN) { doc.setFont('helvetica', 'bold'); doc.text(`PAN: ${billPAN}`, L, ly); doc.setFont('helvetica', 'normal'); ly += 4; }
-      y = Math.max(ly, ry) + 4;
+      if (billGST) { doc.setFont('helvetica', 'bold'); doc.text(`GST: ${billGST}`, blockX, y); doc.setFont('helvetica', 'normal'); y += 4; }
+      if (billPAN) { doc.setFont('helvetica', 'bold'); doc.text(`PAN: ${billPAN}`, blockX, y); doc.setFont('helvetica', 'normal'); y += 4; }
 
-      const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      y = Math.max(y, shipY) + 6;
 
+      /* ---- Line-item table: consistent center alignment for numeric columns ---- */
       doc.autoTable({
         startY: y,
         head: [['Sl. No', 'Description', 'Unit Price', 'QTY', 'Net Amount', 'Tax Rate', 'Tax Type', 'Tax Amt', 'Total']],
-        // Yahan saare amount columns mein formatNumOnly laga diya hai
         body: [['1', customDesc, formatNumOnly(gst.base), '1', formatNumOnly(gst.base), `${gst.rate}%`, gst.taxType, formatNumOnly(gst.taxAmt), formatNumOnly(gst.total)]],
         foot: [['', '', '', '', '', '', '', 'TOTAL:', formatNumOnly(gst.total)]],
         margin: { left: L, right: 14 },
-        styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 3, textColor: 30 },
-        headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
-        footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
+        styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 3, textColor: 30, valign: 'middle' },
+        headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'center' },
+        footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold', halign: 'right' },
         columnStyles: {
-          0: { halign: 'center' }, // Sl.No
-          1: { halign: 'left' },   // Description (kept left for readability)
-          2: { halign: 'center' }, // Price
-          3: { halign: 'center' }, // Qty
-          4: { halign: 'center' }, // Net
-          5: { halign: 'center' }, // Tax Rate
-          6: { halign: 'center' }, // Tax Type
-          7: { halign: 'center' }, // Tax Amt
-          8: { halign: 'center' }  // Total
+          0: { halign: 'center', cellWidth: 12 },
+          1: { halign: 'left', cellWidth: 44 },
+          2: { halign: 'right', cellWidth: 22 },
+          3: { halign: 'center', cellWidth: 12 },
+          4: { halign: 'right', cellWidth: 22 },
+          5: { halign: 'center', cellWidth: 16 },
+          6: { halign: 'center', cellWidth: 22 },
+          7: { halign: 'right', cellWidth: 18 },
+          8: { halign: 'right', cellWidth: 18 }
         }
       });
 
-      y = doc.lastAutoTable.finalY + 5;
+      /* ---- Totals block: right-aligned, fixed gutter so labels & values line up ---- */
+      y = doc.lastAutoTable.finalY + 6;
+      const totalsLabelX = R - 50, totalsValX = R;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
       if (gst.isSame) {
-        doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, { align: 'right' }); y += 4.5;
-        doc.text(`CGST @ ${gst.rate / 2}%: ${fmtINRPdf(gst.cgst)}`, R, y, { align: 'right' }); y += 4.5;
-        doc.text(`SGST @ ${gst.rate / 2}%: ${fmtINRPdf(gst.sgst)}`, R, y, { align: 'right' }); y += 4.5;
+        doc.text('Base Amount', totalsLabelX, y); doc.text(fmtINRPdf(gst.base), totalsValX, y, { align: 'right' }); y += 4.5;
+        doc.text(`CGST @ ${gst.rate / 2}%`, totalsLabelX, y); doc.text(fmtINRPdf(gst.cgst), totalsValX, y, { align: 'right' }); y += 4.5;
+        doc.text(`SGST @ ${gst.rate / 2}%`, totalsLabelX, y); doc.text(fmtINRPdf(gst.sgst), totalsValX, y, { align: 'right' }); y += 4.5;
       } else {
-        doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, { align: 'right' }); y += 4.5;
-        doc.text(`IGST @ ${gst.rate}%: ${fmtINRPdf(gst.igst)}`, R, y, { align: 'right' }); y += 4.5;
+        doc.text('Base Amount', totalsLabelX, y); doc.text(fmtINRPdf(gst.base), totalsValX, y, { align: 'right' }); y += 4.5;
+        doc.text(`IGST @ ${gst.rate}%`, totalsLabelX, y); doc.text(fmtINRPdf(gst.igst), totalsValX, y, { align: 'right' }); y += 4.5;
       }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
-      doc.text(`Total: ${fmtINRPdf(gst.total)}`, R, y, { align: 'right' }); y += 6;
+      doc.setDrawColor(20); doc.setLineWidth(0.4); doc.line(totalsLabelX, y, totalsValX, y); y += 4;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      doc.text('Total', totalsLabelX, y); doc.text(fmtINRPdf(gst.total), totalsValX, y, { align: 'right' });
+      y += 7;
+
+      /* ---- Amount in words box ---- */
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-      const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W);
-      doc.setFillColor(249, 249, 249); doc.rect(L, y - 3, W, wl.length * 4.5 + 3, 'F');
-      doc.text(wl, L + 2, y); y += wl.length * 4.5 + 5;
-      doc.setFont('helvetica', 'bold');
-      doc.text(`From ${coName}`, L, y); y += 8;
-      doc.setDrawColor(200); doc.line(L, y, R, y); y += 5;
+      const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W - 4);
+      doc.setFillColor(249, 249, 249); doc.setDrawColor(221);
+      doc.rect(L, y - 4, W, wl.length * 4.5 + 5, 'FD');
+      doc.text(wl, L + 2, y); y += wl.length * 4.5 + 6;
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text(`From ${coName}`, L, y); y += 7;
+      doc.setDrawColor(200); doc.setLineWidth(0.3); doc.line(L, y, R, y); y += 5;
+
+      /* ---- Sold-by / signature footer: aligned baselines on both sides ---- */
+      const footStartY = y;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('SOLD BY', L, y); y += 5;
       doc.text(coName, L, y); y += 4.5;
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-      if (coAddr) { const ls = doc.splitTextToSize(coAddr, 90); doc.text(ls, L, y); y += ls.length * 4; }
+      if (coAddr) { const ls = doc.splitTextToSize(coAddr, 110); doc.text(ls, L, y); y += ls.length * 4; }
       if (coPan) { doc.setFont('helvetica', 'bold'); doc.text(`PAN No: ${coPan}`, L, y); doc.setFont('helvetica', 'normal'); y += 4; }
       if (coGst) { doc.setFont('helvetica', 'bold'); doc.text(`GST Registration No: ${coGst}`, L, y); doc.setFont('helvetica', 'normal'); y += 4; }
       if (coCin) { doc.text(`CIN No: ${coCin}`, L, y); y += 4; }
+
       const ph = doc.internal.pageSize.height;
-      doc.setFont('helvetica', 'bold'); doc.internal.pageSize.height;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
       doc.text(`For ${coName}`, R, ph - 20, { align: 'right' });
+      doc.setDrawColor(50); doc.setLineWidth(0.3);
       doc.line(R - 40, ph - 16, R, ph - 16);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
       doc.text(co.signatory || 'Authorised Signatory', R, ph - 12, { align: 'right' });
@@ -2319,12 +2379,18 @@
       const eX = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return String(t ?? '').split('\n').map(line => `<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`).join('');
     }
-    function wTR(cells, opts = {}) {
-      return `<w:tr>${cells.map(c => `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c, opts)}</w:tc>`).join('')}</w:tr>`;
+    /* wTC now takes an explicit fixed width (twips) per cell + optional alignment,
+       so DOCX table columns line up instead of relying on "auto" width. */
+    function wTC(text, widthTw, opts = {}) {
+      return `<w:tc><w:tcPr><w:tcW w:w="${widthTw}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${wP(text, opts)}</w:tc>`;
     }
-    function wTable(rows) {
+    function wTR(cells, widths, opts = {}) {
+      return `<w:tr>${cells.map((c, i) => wTC(c, widths[i] || widths[widths.length - 1], opts)).join('')}</w:tr>`;
+    }
+    function wTable(rows, totalWidthTw) {
       const b = `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
-      return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${b}</w:tblPr>${rows}</w:tbl>`;
+      const layout = `<w:tblLayout w:type="fixed"/>`;
+      return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidthTw}" w:type="dxa"/>${layout}${b}</w:tblPr>${rows}</w:tbl>`;
     }
     async function buildDOCX(row, profile, invNum) {
       const co = S.company || {}; const p = profile || {};
@@ -2347,15 +2413,46 @@
       const customDesc = lineDescription;
 
       const billGST = row['_billGST'] || p.gst || ''; const billPAN = row['_billPAN'] || p.pan || '';
+
+      // Page usable width ~9360 twips (A4, 1080-twip margins each side). Used to
+      // build fixed-width tables so every column lines up consistently.
+      const PAGE_W = 9360;
+      const halfW = [PAGE_W / 2, PAGE_W / 2];
+      const itemWidths = [800, 2400, 1200, 700, 1200, 950, 1200, 950, 960]; // sums to 9360
+
       let body = '';
       body += wP('Tax Invoice', { bold: true, size: 14 }); body += wP('(Original for Recipient)', { size: 9 }); body += wP('');
       body += wP(coName, { bold: true, size: 13, align: 'right' }); body += wP('');
-      body += wTable(wTR([`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`], { size: 9 }) + wTR([`Transaction Date: ${txDate}`], { size: 9 }));
+      body += wTable(
+        wTR([`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`], halfW, { size: 9 }) +
+        wTR([`Transaction Date: ${txDate}`, ''], halfW, { size: 9 }),
+        PAGE_W
+      );
       body += wP('');
-      body += wTable(wTR(['BILLING ADDRESS', 'SHIPPING ADDRESS'], { bold: true, size: 8 }) + wTR([[merchantName, fullBillAddr, billGST ? `GST: ${billGST}` : '', billPAN ? `PAN: ${billPAN}` : ''].filter(Boolean).join('\n'), [shipName, fullShipAddr].filter(Boolean).join('\n')], { size: 9 }));
+      body += wTable(
+        wTR(['BILLING ADDRESS', 'SHIPPING ADDRESS:'], halfW, { bold: true, size: 8 }) +
+        wTR(
+          [merchantName, shipName],
+          halfW, { bold: true, size: 9 }
+        ) +
+        wTR(
+          [
+            [fullBillAddr, billGST ? `GST: ${billGST}` : '', billPAN ? `PAN: ${billPAN}` : ''].filter(Boolean).join('\n'),
+            fullShipAddr
+          ],
+          halfW, { size: 9 }
+        ),
+        PAGE_W
+      );
       body += wP('');
-      body += wTable(wTR(['SI.No', 'Description', 'Unit Price', 'QTY', 'Net Amount', 'Tax Rate', 'Tax Type', 'Tax Amt', 'Total'], { bold: true, size: 8 }) + wTR(['1', customDesc, fmtINR(gst.base), '1', fmtINR(gst.base), `${gst.rate}%`, gst.taxType, fmtINR(gst.taxAmt), fmtINR(gst.total)], { size: 8 }) + wTR(['', '', '', '', '', '', '', 'TOTAL:', fmtINR(gst.total)], { bold: true, size: 8 }));
-      body += wP(''); body += wP(`Base Amount: ${fmtINR(gst.base)}`, { size: 9, align: 'right' });
+      body += wTable(
+        wTR(['SI.No', 'Description', 'Unit Price', 'QTY', 'Net Amount', 'Tax Rate', 'Tax Type', 'Tax Amt', 'Total'], itemWidths, { bold: true, size: 8, align: 'center' }) +
+        wTR(['1', customDesc, fmtINR(gst.base), '1', fmtINR(gst.base), `${gst.rate}%`, gst.taxType, fmtINR(gst.taxAmt), fmtINR(gst.total)], itemWidths, { size: 8, align: 'center' }) +
+        wTR(['', '', '', '', '', '', '', 'TOTAL:', fmtINR(gst.total)], itemWidths, { bold: true, size: 8, align: 'right' }),
+        PAGE_W
+      );
+      body += wP('');
+      body += wP(`Base Amount: ${fmtINR(gst.base)}`, { size: 9, align: 'right' });
       if (gst.isSame) { body += wP(`CGST @ ${gst.rate / 2}%: ${fmtINR(gst.cgst)}`, { size: 9, align: 'right' }); body += wP(`SGST @ ${gst.rate / 2}%: ${fmtINR(gst.sgst)}`, { size: 9, align: 'right' }); }
       else { body += wP(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`, { size: 9, align: 'right' }); }
       body += wP(`Total: ${fmtINR(gst.total)}`, { bold: true, size: 11, align: 'right' });
@@ -2379,10 +2476,7 @@
       if (!profile || !sellerName) return false;
       const a = String(profile.name || '').toLowerCase().trim();
       const b = String(sellerName || '').toLowerCase().trim();
-
-      // Empty string check takki galat profile match na ho
       if (!a || !b) return false;
-
       return a === b || a.includes(b) || b.includes(a);
     }
 
@@ -2551,7 +2645,7 @@
         if (!confirm(`Delete all ${S.savedInvoices.length} saved invoices? This cannot be undone.`)) return;
         try {
           await dbClearInvoices();
-          S.savedInvoices = S.savedInvoices = [];
+          S.savedInvoices = [];
           toast('All invoices deleted from cloud.', '');
           render();
         } catch (e) { toast('Delete failed', 'bad'); }
