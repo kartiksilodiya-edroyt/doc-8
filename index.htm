@@ -407,6 +407,7 @@ async function dbSaveProfiles(profiles) {
     city      : p.city || null,
     state     : p.state || null,
     pin       : p.pin || null,
+    logo_url  : p.logoUrl || null,
   }));
   const { error } = await supa.from('merchant_profiles').insert(rows);
   if(error) throw error;
@@ -427,6 +428,8 @@ async function dbLoadProfiles() {
     city     : r.city,
     state    : r.state,
     pin      : r.pin,
+    logoUrl  : r.logo_url,
+    logoB64  : null,
   }));
 }
 
@@ -504,6 +507,13 @@ async function uploadLogoToStorage(base64) {
   return await uploadToStorage(blob, `logos/company-logo.${ext}`, mime);
 }
 
+async function uploadProfileLogoToStorage(base64, profileId) {
+  const mime = base64.split(';')[0].split(':')[1] || 'image/png';
+  const ext  = mime.includes('jpeg') ? 'jpg' : mime.includes('svg') ? 'svg' : 'png';
+  const blob = b64ToBlob(base64, mime);
+  return await uploadToStorage(blob, `logos/profile-${profileId}.${ext}`, mime);
+}
+
 async function uploadInvoiceFiles(invNum, pdfBlob, docxBlob) {
   const safe = invNum.replace(/[^a-zA-Z0-9\-_]/g, '_');
   let pdfUrl = null, docxUrl = null;
@@ -567,6 +577,22 @@ function b64ToBlob(d, mime) {
   return new Blob([arr],{type:mime});
 }
 const b64 = blob => new Promise((res,rej)=>{ if(!blob) return res(null); const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsDataURL(blob); });
+
+/* jsPDF can only embed base64 image data, not remote URLs. Once a logo is
+   saved to Supabase Storage it's stored as a public https URL, so this
+   fetches it back and converts it to a data URL before it's drawn into a
+   PDF. Returns null (silently) if the fetch fails, so the PDF still falls
+   back to plain company-name text instead of breaking generation. */
+async function urlToDataURL(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await b64(blob);
+  } catch(e) {
+    console.warn('Could not fetch logo for PDF embedding:', e);
+    return null;
+  }
+}
 
 /* ═══════════════════════════════════════════════
    GST ENGINE
@@ -647,6 +673,67 @@ function parseDate(raw) {
 function getLogoSrc() {
   const co = S.company || {};
   return co.logoUrl || co.logoB64 || null;
+}
+
+/* Logo that belongs to a specific matched Merchant Profile (set on the
+   "Merchant Profiles" page). This is what fixes the "same logo on every
+   invoice" bug — each profile carries its own logo, and only rows whose
+   Seller Name matches that profile will use it. */
+function getProfileLogo(profile) {
+  if(!profile) return null;
+  return profile.logoUrl || profile.logoB64 || null;
+}
+
+/* ═══════════════════════════════════════════════
+   EXCEL → BILLING / SHIPPING FIELD MAPPING
+   ───────────────────────────────────────────────
+   Reads Billing & Shipping Name/Address straight out of the uploaded
+   Excel row (instead of only relying on a manually-saved Merchant
+   Profile). Add/adjust the header strings inside each pick(...) call
+   below so they match your real Fidypay export column names exactly —
+   the matching is case-sensitive against XLSX.utils.sheet_to_json keys.
+═══════════════════════════════════════════════ */
+function extractAddressFieldsFromRow(row) {
+  const pick = (...keys) => {
+    for(const k of keys) {
+      if(row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return String(row[k]).trim();
+    }
+    return '';
+  };
+
+  // BILLING — adjust these header names to match your Excel columns
+  const billName    = pick('Billing Name','Bill To Name','Buyer Name','Billing Customer Name','Customer Name');
+  const billAddress = pick('Billing Address','Bill To Address','Buyer Address','Billing Address Line','Address');
+  const billCity     = pick('Billing City','Bill City','City');
+  const billState    = pick('Billing State','Bill State','State');
+  const billPin      = pick('Billing Pincode','Billing PIN','Bill Pincode','Pincode','PIN Code','PIN');
+  const billGST      = pick('Billing GST','Buyer GST','GSTIN','GST Number','GST No');
+  const billPAN      = pick('Billing PAN','Buyer PAN','PAN Number','PAN No');
+
+  // SHIPPING — falls back to billing values if a shipping column is blank/missing
+  const shipName    = pick('Shipping Name','Ship To Name','Consignee Name','Delivery Name');
+  const shipAddress = pick('Shipping Address','Ship To Address','Consignee Address','Delivery Address');
+  const shipCity     = pick('Shipping City','Ship City','Delivery City');
+  const shipState    = pick('Shipping State','Ship State','Delivery State');
+  const shipPin      = pick('Shipping Pincode','Shipping PIN','Ship Pincode','Delivery Pincode');
+
+  // Only set when the row doesn't already carry a manual edit (so re-uploading
+  // never clobbers a value someone fixed by hand in the Edit modal).
+  if(!row['_billName'])    row['_billName']    = billName    || row['Seller Name'] || '';
+  if(!row['_billAddress']) row['_billAddress'] = billAddress;
+  if(!row['_billCity'])    row['_billCity']    = billCity;
+  if(!row['_billState'])   row['_billState']   = billState;
+  if(!row['_billPin'])     row['_billPin']     = billPin;
+  if(!row['_billGST'])     row['_billGST']     = billGST;
+  if(!row['_billPAN'])     row['_billPAN']     = billPAN;
+
+  if(!row['_shipName'])    row['_shipName']    = shipName    || row['_billName'];
+  if(!row['_shipAddress']) row['_shipAddress'] = shipAddress || row['_billAddress'];
+  if(!row['_shipCity'])    row['_shipCity']    = shipCity    || row['_billCity'];
+  if(!row['_shipState'])   row['_shipState']   = shipState   || row['_billState'];
+  if(!row['_shipPin'])     row['_shipPin']     = shipPin     || row['_billPin'];
+
+  return row;
 }
 
 /* ═══════════════════════════════════════════════
@@ -861,6 +948,7 @@ function handleFile(file) {
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
       if(!json.length) throw new Error('No rows found in file');
+      json.forEach(extractAddressFieldsFromRow);
       S.rows = json; S.generated = []; S.uploadedFileName = file.name;
       render();
       toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
@@ -960,6 +1048,15 @@ function buildInvoiceHTML(row, profile, invNum) {
   const merchantGST   = row['_billGST']     || p.gst     || '';
   const merchantPAN   = row['_billPAN']     || p.pan     || '';
   const fullBillAddr  = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+
+  // Shipping — independent of Billing; falls back to Billing only if not provided
+  const shipName  = row['_shipName']    || merchantName;
+  const shipAddr  = row['_shipAddress'] || merchantAddr;
+  const shipCity  = row['_shipCity']    || merchantCity;
+  const shipState = row['_shipState']   || merchantState;
+  const shipPin   = row['_shipPin']     || merchantPin;
+  const fullShipAddr = [shipAddr, shipCity, shipState, shipPin].filter(Boolean).join(', ');
+
   const gst         = getGSTInfo(row, profile);
   const words       = numWords(gst.total);
   const invDate     = parseDate(new Date());
@@ -969,7 +1066,7 @@ function buildInvoiceHTML(row, profile, invNum) {
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const coName      = co.name || '';
   const coAddr      = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getLogoSrc();
+  const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
 
   const totalsRows = gst.isSame
     ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
@@ -1004,7 +1101,7 @@ function buildInvoiceHTML(row, profile, invNum) {
       </div>
       <div class="inv-addr-col">
         <div class="inv-addr-label">Shipping Address</div>
-        <div class="inv-addr-body"><b>${esc(merchantName)}</b><br>${fullBillAddr ? wrapAddressLines(fullBillAddr) : '—'}</div>
+        <div class="inv-addr-body"><b>${esc(shipName)}</b><br>${fullShipAddr ? wrapAddressLines(fullShipAddr) : '—'}</div>
       </div>
     </div>
     <table class="inv-table">
@@ -1085,8 +1182,13 @@ function showEditModal(rowIdx) {
     billPin     : row['_billPin']     || (profile&&profile.pin)     || '',
     billGST     : row['_billGST']     || (profile&&profile.gst)     || '',
     billPAN     : row['_billPAN']     || (profile&&profile.pan)     || '',
+    shipName    : row['_shipName']    || row['_billName']    || (profile&&profile.name)    || row['Seller Name'] || '',
+    shipAddress : row['_shipAddress'] || row['_billAddress'] || (profile&&profile.address) || '',
+    shipCity    : row['_shipCity']    || row['_billCity']    || (profile&&profile.city)    || '',
+    shipState   : row['_shipState']   || row['_billState']   || (profile&&profile.state)   || '',
+    shipPin     : row['_shipPin']     || row['_billPin']     || (profile&&profile.pin)     || '',
     logoB64     : row['_logoB64'] || null,
-    logoUrl     : row['_logoUrl'] || getLogoSrc(),
+    logoUrl     : row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc(),
   };
 
   const logoPreviewHTML = (ed) => {
@@ -1138,6 +1240,13 @@ function showEditModal(rowIdx) {
         <div class="field"><label>PIN</label><input type="text" id="ef_billPin" value="${esc(edits.billPin)}"></div>
         <div class="field"><label>GST Number</label><input type="text" id="ef_billGST" value="${esc(edits.billGST)}"></div>
         <div class="field"><label>PAN Number</label><input type="text" id="ef_billPAN" value="${esc(edits.billPAN)}"></div>
+        <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Shipping Details</div>
+        <div class="field"><label>Recipient Name</label><input type="text" id="ef_shipName" value="${esc(edits.shipName)}"></div>
+        <div class="field"><label>Address</label><input type="text" id="ef_shipAddress" value="${esc(edits.shipAddress)}"></div>
+        <div class="field"><label>City</label><input type="text" id="ef_shipCity" value="${esc(edits.shipCity)}"></div>
+        <div class="field"><label>State</label><input type="text" id="ef_shipState" value="${esc(edits.shipState)}"></div>
+        <div class="field"><label>PIN</label><input type="text" id="ef_shipPin" value="${esc(edits.shipPin)}"></div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
           <button class="btn btn-primary" id="ef_applyBtn">Apply to Row &amp; Generate PDF</button>
           <button class="btn btn-ghost" id="ef_closeBtn">Close without saving</button>
@@ -1164,7 +1273,8 @@ function showEditModal(rowIdx) {
     const co  = S.company || {};
     const gst = calcGST(edits.amount, edits.gstRate, co.state||'', edits.billState||'');
     const fullBillAddr = [edits.billAddress,edits.billCity,edits.billState,edits.billPin].filter(Boolean).join(', ');
-    const logoSrc = edits.logoB64 || edits.logoUrl || getLogoSrc();
+    const fullShipAddr = [edits.shipAddress,edits.shipCity,edits.shipState,edits.shipPin].filter(Boolean).join(', ');
+    const logoSrc = edits.logoB64 || edits.logoUrl || getProfileLogo(profile) || getLogoSrc();
     const desc = edits.description || ('Settlement '+(edits.txType||'COLLECTION')+' — Record ID: '+esc(edits.settlementId));
     const totalsRows = gst.isSame
       ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
@@ -1184,7 +1294,7 @@ function showEditModal(rowIdx) {
       </div>
       <div class="inv-addr-row">
         <div class="inv-addr-col"><div class="inv-addr-label">Billing Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?wrapAddressLines(fullBillAddr)+'<br>':''}${edits.billGST?'<b>GST: '+esc(edits.billGST)+'</b><br>':''}${edits.billPAN?'<b>PAN: '+esc(edits.billPAN)+'</b>':''}</div></div>
-        <div class="inv-addr-col"><div class="inv-addr-label">Shipping Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?wrapAddressLines(fullBillAddr):'—'}</div></div>
+        <div class="inv-addr-col"><div class="inv-addr-label">Shipping Address</div><div class="inv-addr-body"><b>${esc(edits.shipName)}</b><br>${fullShipAddr?wrapAddressLines(fullShipAddr):'—'}</div></div>
       </div>
       <table class="inv-table"><thead><tr><th>SI.No</th><th>Description</th><th>Unit Price</th><th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th></tr></thead>
       <tbody><tr><td>1</td><td>${desc}<br><span style="color:#666;font-size:9px;">Ref: ${esc(edits.txRef)}</span></td>
@@ -1206,7 +1316,7 @@ function showEditModal(rowIdx) {
   const refreshPreview = () => { updateGSTChip(); previewArea.innerHTML = buildPreviewFromEdits(); };
   refreshPreview();
 
-  const textFields = ['invNum','txDate','amount','description','utr','txRef','billName','billAddress','billCity','billState','billPin','billGST','billPAN'];
+  const textFields = ['invNum','txDate','amount','description','utr','txRef','billName','billAddress','billCity','billState','billPin','billGST','billPAN','shipName','shipAddress','shipCity','shipState','shipPin'];
   textFields.forEach(f => {
     const el = bg.querySelector('#ef_'+f);
     if(el) el.addEventListener('input', () => { edits[f] = f==='amount'?cleanNum(el.value):el.value; refreshPreview(); });
@@ -1252,6 +1362,11 @@ function showEditModal(rowIdx) {
     r['_billPin']      = edits.billPin;
     r['_billGST']      = edits.billGST;
     r['_billPAN']      = edits.billPAN;
+    r['_shipName']     = edits.shipName;
+    r['_shipAddress']  = edits.shipAddress;
+    r['_shipCity']     = edits.shipCity;
+    r['_shipState']    = edits.shipState;
+    r['_shipPin']      = edits.shipPin;
     r['_logoB64']      = edits.logoB64;
     r['_logoUrl']      = edits.logoUrl;
     toast('Row updated. Click Generate to rebuild invoices.','good');
@@ -1296,7 +1411,7 @@ function showPreviewModal(row) {
 /* ═══════════════════════════════════════════════
    BUILD PDF
 ═══════════════════════════════════════════════ */
-function buildPDF(row, profile, invNum) {
+async function buildPDF(row, profile, invNum) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const L=14, R=196, W=182;
@@ -1306,6 +1421,8 @@ function buildPDF(row, profile, invNum) {
   const gst = getGSTInfo(row, profile);
   const merchantName = row['_billName'] || p.name || row['Seller Name'] || '';
   const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
+  const shipName     = row['_shipName']    || merchantName;
+  const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
   const coName  = co.name  || '';
   const coAddr  = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
   const words   = numWords(gst.total);
@@ -1314,7 +1431,11 @@ function buildPDF(row, profile, invNum) {
   const settlementRecId = row['Seller Settlement Records ID'] || '';
   const txRef   = row['Transaction Reference Number'] || '';
   const txType  = row['Transaction Type'] || 'COLLECTION';
-  const logoSrc = row['_logoB64'] || row['_logoUrl'] || getLogoSrc();
+  let logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
+  if(logoSrc && !logoSrc.startsWith('data:')) {
+    const dataUrl = await urlToDataURL(logoSrc);
+    if(dataUrl) logoSrc = dataUrl;
+  }
 
   doc.setFont('helvetica','bold'); doc.setFontSize(15);
   doc.text('Tax Invoice', L, y);
@@ -1338,13 +1459,16 @@ function buildPDF(row, profile, invNum) {
   doc.text('BILLING ADDRESS', L, ly); doc.text('SHIPPING ADDRESS', 110, ry);
   ly+=5; ry+=5;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(merchantName||'—', L, ly); doc.text(merchantName||'—', 110, ry);
+  doc.text(merchantName||'—', L, ly); doc.text(shipName||'—', 110, ry);
   ly+=4.5; ry+=4.5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   if(fullBillAddr) {
     const ls = doc.splitTextToSize(fullBillAddr,90);
     doc.text(ls,L,ly); ly+=ls.length*4;
-    doc.text(ls,110,ry); ry+=ls.length*4;
+  }
+  if(fullShipAddr) {
+    const rs = doc.splitTextToSize(fullShipAddr,90);
+    doc.text(rs,110,ry); ry+=rs.length*4;
   }
   const billGST = row['_billGST'] || p.gst || '';
   const billPAN = row['_billPAN'] || p.pan || '';
@@ -1422,6 +1546,8 @@ async function buildDOCX(row, profile, invNum) {
   const gst = getGSTInfo(row, profile);
   const merchantName = row['_billName'] || p.name || row['Seller Name'] || '';
   const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
+  const shipName     = row['_shipName']    || merchantName;
+  const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
   const coName = co.name || ''; const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
   const words = numWords(gst.total); const invDate = parseDate(new Date()); const txDate = parseDate(row['Transaction Date']);
   const settlementRecId = row['Seller Settlement Records ID'] || '';
@@ -1432,7 +1558,7 @@ async function buildDOCX(row, profile, invNum) {
   body += wP(coName,{bold:true,size:13,align:'right'}); body += wP('');
   body += wTable(wTR([`Invoice Number: ${invNum}`,`Invoice Date: ${invDate}`],{size:9})+wTR([`Transaction Date: ${txDate}`,`Seller ID: ${row['Seller ID']||''}`],{size:9}));
   body += wP('');
-  body += wTable(wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8})+wTR([[merchantName,fullBillAddr,billGST?`GST: ${billGST}`:'',billPAN?`PAN: ${billPAN}`:''].filter(Boolean).join('\n'),[merchantName,fullBillAddr].filter(Boolean).join('\n')],{size:9}));
+  body += wTable(wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8})+wTR([[merchantName,fullBillAddr,billGST?`GST: ${billGST}`:'',billPAN?`PAN: ${billPAN}`:''].filter(Boolean).join('\n'),[shipName,fullShipAddr].filter(Boolean).join('\n')],{size:9}));
   body += wP('');
   body += wTable(wTR(['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8})+wTR(['1',`Settlement ${txType}\nRecord ID: ${settlementRecId}\nRef: ${txRef}`,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)],{size:8})+wTR(['','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8}));
   body += wP(''); body += wP(`Base Amount: ${fmtINR(gst.base)}`,{size:9,align:'right'});
@@ -1468,6 +1594,16 @@ function viewProfiles() {
   <div class="note info" style="margin-bottom:18px;">💡 <b>How matching works:</b> Partial matches work — "VISCOSE TECHNOLOGY" will match "VISCOSE TECHNOLOGY PRIVATE LIMITED".</div>
   <div class="card">
     <div class="card-title" style="margin-bottom:16px;">Add Merchant Profile</div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Merchant Logo <span style="color:var(--dim);">(only applied to invoices for this exact merchant)</span></label>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="logo-upload-zone" id="pf_logoPreview" style="width:150px;cursor:pointer;"><span class="logo-placeholder">No logo — click Upload</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;">📁 Upload Logo<input type="file" id="pf_logoInput" accept="image/png,image/jpeg,image/jpg,image/svg+xml" style="display:none;"></label>
+          <button class="btn btn-danger btn-sm" id="pf_removeLogoBtn">✕ Remove</button>
+        </div>
+      </div>
+    </div>
     <div class="grid2">
       <div class="field"><label>Merchant / Company Name *</label><input type="text" id="pf_name" placeholder="e.g. VISCOSE TECHNOLOGY PRIVATE LIMITED"></div>
       <div class="field"><label>Seller ID (from Excel)</label><input type="text" id="pf_sid" placeholder="e.g. 41001327"></div>
@@ -1493,6 +1629,7 @@ function viewProfiles() {
       ${S.profiles.map((p,i) => `
       <div class="profile-card">
         <div class="profile-card-del"><button class="btn btn-danger btn-xs" data-del-p="${i}">✕</button></div>
+        ${getProfileLogo(p) ? `<img src="${getProfileLogo(p)}" style="max-height:28px;max-width:110px;object-fit:contain;margin-bottom:6px;display:block;">` : ''}
         <div class="profile-card-name">${esc(p.name)}</div>
         <div class="profile-card-detail">
           ${p.sellerId?`ID: ${esc(p.sellerId)}<br>`:''}
@@ -1505,10 +1642,29 @@ function viewProfiles() {
 }
 
 function wireProfiles() {
+  let pendingLogoB64 = null;
+  const logoInput   = document.getElementById('pf_logoInput');
+  const logoPreview = document.getElementById('pf_logoPreview');
+  logoPreview?.addEventListener('click', () => logoInput.click());
+  logoInput?.addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    if(file.size > 500000) { toast('Logo too large — max 500 KB.','bad'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      pendingLogoB64 = ev.target.result;
+      logoPreview.innerHTML = `<img src="${pendingLogoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('pf_removeLogoBtn')?.addEventListener('click', () => {
+    pendingLogoB64 = null;
+    if(logoPreview) logoPreview.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
+  });
+
   document.getElementById('saveProfileBtn')?.addEventListener('click', async () => {
     const name = document.getElementById('pf_name').value.trim();
     if(!name) { toast('Company name is required.','bad'); return; }
-    S.profiles.push({
+    const newProfile = {
       id      : uid(), name,
       sellerId: document.getElementById('pf_sid').value.trim(),
       gst     : document.getElementById('pf_gst').value.trim(),
@@ -1519,7 +1675,14 @@ function wireProfiles() {
       city    : document.getElementById('pf_city').value.trim(),
       state   : document.getElementById('pf_state').value.trim(),
       pin     : document.getElementById('pf_pin').value.trim(),
-    });
+      logoUrl : null,
+    };
+    try {
+      if(supaReady && pendingLogoB64) {
+        newProfile.logoUrl = await uploadProfileLogoToStorage(pendingLogoB64, newProfile.id);
+      }
+    } catch(e) { toast('Logo upload failed: '+e.message,'bad'); }
+    S.profiles.push(newProfile);
     try { if(supaReady) await dbSaveProfiles(S.profiles); } catch(e) { toast('Cloud sync failed: '+e.message,'bad'); }
     toast('Profile saved.','good'); render();
   });
