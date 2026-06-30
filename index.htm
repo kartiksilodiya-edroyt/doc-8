@@ -1,786 +1,1512 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fidypay — Settlement Invoice Generator</title>
-<style>
-:root {
-  --bg: #0c0e14;
-  --surface: #13161f;
-  --surface2: #1a1e2a;
-  --border: #252b3b;
-  --border2: #2e3650;
-  --text: #e8eaf0;
-  --muted: #7c879e;
-  --dim: #4a5268;
-  --accent: #4f7fff;
-  --accent-glow: rgba(79,127,255,0.15);
-  --green: #3ecf8e;
-  --green-bg: #0d2b1e;
-  --amber: #f5a623;
-  --amber-bg: #2b1e08;
-  --red: #e05c5c;
-  --red-bg: #2b0d0d;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fidypay — Settlement Invoice Generator</title>
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --surface: #13161f;
+      --surface2: #1a1e2a;
+      --border: #252b3b;
+      --border2: #2e3650;
+      --text: #e8eaf0;
+      --muted: #7c879e;
+      --dim: #4a5268;
+      --accent: #4f7fff;
+      --accent-glow: rgba(79, 127, 255, 0.15);
+      --green: #3ecf8e;
+      --green-bg: #0d2b1e;
+      --amber: #f5a623;
+      --amber-bg: #2b1e08;
+      --red: #e05c5c;
+      --red-bg: #2b0d0d;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+    }
+
+    .logo {
+      margin-bottom: 32px;
+    }
+
+    .logo-mark {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .logo-mark span {
+      color: var(--accent);
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--dim);
+      margin-top: 3px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      margin-bottom: 2px;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      bottom: 20%;
+      width: 2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .nav-icon {
+      font-size: 15px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .nav-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    .sidebar-foot {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+
+    .db-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      margin-top: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--surface2);
+    }
+
+    .db-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .db-dot.green {
+      background: var(--green);
+    }
+
+    .db-dot.red {
+      background: var(--red);
+    }
+
+    .db-dot.amber {
+      background: var(--amber);
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 40px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .15s;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #3d6be6;
+    }
+
+    .btn-primary:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-danger {
+      background: var(--red-bg);
+      border: 1px solid var(--red);
+      color: var(--red);
+    }
+
+    .btn-danger:hover {
+      opacity: .8;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-xs {
+      padding: 3px 9px;
+      font-size: 11px;
+    }
+
+    .btn-green {
+      background: var(--green-bg);
+      border: 1px solid var(--green);
+      color: var(--green);
+    }
+
+    .btn-green:hover {
+      opacity: .85;
+    }
+
+    input[type=text],
+    input[type=email],
+    input[type=number],
+    textarea,
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 11px;
+      font-size: 12.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border .15s;
+      width: 100%;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+      letter-spacing: 0.2px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: 10px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.over {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .drop-icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .drop-label {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .drop-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+
+    .stat-val {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .stat.accent .stat-val {
+      color: var(--accent);
+    }
+
+    .stat.green .stat-val {
+      color: var(--green);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .data-table th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background: var(--surface2);
+    }
+
+    .tbl-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-green {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid #1a4f35;
+    }
+
+    .badge-amber {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border: 1px solid #4a3010;
+    }
+
+    .badge-blue {
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid #1f3a80;
+    }
+
+    .badge-dim {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .note {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .note b {
+      color: var(--text);
+    }
+
+    .note.info {
+      border-color: #1f3a80;
+      background: var(--accent-glow);
+      color: #a0b4ff;
+    }
+
+    .note.success {
+      border-color: #1a4f35;
+      background: var(--green-bg);
+      color: #7de8b6;
+    }
+
+    .note.warn {
+      border-color: #4a3010;
+      background: var(--amber-bg);
+      color: #f5c872;
+    }
+
+    .progress-wrap {
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      height: 6px;
+      margin: 10px 0;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      width: 0;
+      transition: width .2s;
+      border-radius: 4px;
+    }
+
+    .profile-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      position: relative;
+    }
+
+    .profile-card-name {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .profile-card-detail {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      line-height: 1.6;
+    }
+
+    .profile-card-del {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    /* INVOICE PREVIEW */
+    .inv-paper {
+      background: #fff;
+      color: #111;
+      border-radius: 8px;
+       padding:40px 48px;
+      max-width: 760px;
+      margin: 0 auto;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      font-family: 'Arial', sans-serif;
+      font-size: 10.5px;
+      line-height: 1.4;
+    }
+
+    .inv-paper .inv-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .inv-paper .inv-title-block h2 {
+      font-size: 17px;
+      font-weight: 900;
+      color: #111;
+      margin-bottom: 1px;
+    }
+
+    .inv-paper .inv-title-block p {
+      font-size: 10px;
+      color: #555;
+    }
+
+    .inv-paper .inv-logo {
+      font-size: 22px;
+      font-weight: 900;
+      color: #111;
+      letter-spacing: -0.5px;
+    }
+
+    .inv-paper .inv-meta {
+      text-align: right;
+      font-size: 10px;
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    .inv-paper .inv-meta div {
+      margin-bottom: 2px;
+    }
+
+    .inv-paper hr.inv-rule {
+      border: none;
+      border-top: 1.5px solid #222;
+      margin: 18px 0;
+    }
+
+    .inv-paper hr.inv-rule-light {
+      border: none;
+      border-top: 1px solid #ddd;
+      margin: 18px 0;
+    }
+
+    .inv-paper .inv-addr-row {
+      display: flex;
+      gap: 32px;
+      margin: 14px 0;
+    }
+
+    .inv-paper .inv-addr-col {
+      flex: 1;
+    }
+
+    .inv-paper .inv-addr-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #777;
+      margin-bottom: 5px;
+    }
+
+    .inv-paper .inv-addr-body {
+      font-size: 10.5px;
+      color: #222;
+      line-height: 1.75;
+    }
+
+    .inv-paper .inv-addr-body b {
+      font-size: 11.5px;
+    }
+
+    table.inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 10px;
+    }
+
+    table.inv-table th {
+      background: #f2f2f2;
+      border: 1px solid #ccc;
+      padding: 9px 10px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 9.5px;
+    }
+
+    table.inv-table td {
+      border: 1px solid #ddd;
+      padding: 10px 10px;
+      vertical-align: top;
+    }
+
+    table.inv-table tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    .inv-totals {
+      margin-left: auto;
+      width: 280px;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .inv-totals td {
+      padding: 4px 8px;
+      font-size: 10px;
+      border: none;
+    }
+
+    .inv-totals .total-final td {
+      font-weight: 800;
+      font-size: 12px;
+      border-top: 2px solid #111;
+      padding-top: 6px;
+    }
+
+    .inv-words {
+      font-size: 10.5px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+         padding:12px 16px;
+    margin-top:18px;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+
+    .inv-from {
+      font-size: 10.5px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 6px 0 12px;
+      font-weight: 600;
+    }
+
+    .inv-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top:28px;
+    padding-top:18px;
+      border-top: 1px solid #ddd;
+    }
+
+    .inv-sold-by {
+      font-size: 9.5px;
+      color: #333;
+      line-height: 1.7;
+    }
+
+    .inv-sold-by .co-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 3px;
+    }
+
+    .inv-sign {
+      text-align: right;
+      font-size: 9.5px;
+      color: #555;
+    }
+
+    .inv-sign .sig-line {
+      width: 130px;
+      border-bottom: 1.5px solid #333;
+      height: 36px;
+      margin-left: auto;
+      margin-bottom: 5px;
+    }
+
+    .inv-sign .sig-name {
+      font-weight: 700;
+      font-size: 11px;
+      color: #111;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .result-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color .15s;
+    }
+
+    .result-card:hover {
+      border-color: var(--border2);
+    }
+
+    .rc-id {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .rc-merchant {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 3px 0 8px;
+    }
+
+    .rc-amount {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--green);
+      margin-bottom: 10px;
+    }
+
+    .rc-utr {
+      font-size: 11px;
+      color: var(--dim);
+      margin-bottom: 10px;
+      font-family: monospace;
+    }
+
+    .rc-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 18px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: all .25s;
+      max-width: 340px;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #toast.good {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    #toast.bad {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 9990;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      width: 500px;
+      max-width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: .4;
+    }
+
+    .empty h3 {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .empty p {
+      font-size: 13px;
+    }
+
+    .logo-upload-zone {
+      width: 100%;
+      height: 60px;
+      border: 1.5px dashed var(--border2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface2);
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .logo-upload-zone:hover {
+      border-color: var(--accent);
+    }
+
+    .logo-upload-zone img {
+      max-height: 52px;
+      max-width: 100%;
+      object-fit: contain;
+      padding: 4px;
+    }
+
+    .logo-upload-zone .logo-placeholder {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    @media print {
+
+      .sidebar,
+      .main>*:not(#printTarget) {
+        display: none;
+      }
+
+      #printTarget {
+        display: block !important;
+      }
+    }
+
+    .inv-transaction-info{
+    margin:18px 0;
+    padding:10px 14px;
+    border:1px solid #d8d8d8;
+    background:#fafafa;
+    border-radius:6px;
+    line-height:1.7;
+    font-size:10px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); min-height: 100vh; }
-.shell { display: flex; min-height: 100vh; }
-.sidebar {
-  width: 240px; flex-shrink: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  padding: 24px 16px;
+
+.inv-shipping-box{
+    margin-top:18px;
+    margin-bottom:24px;
+    padding:12px 14px;
+    border:1px solid #dcdcdc;
+    border-radius:6px;
+    background:#fff;
 }
-.logo { margin-bottom: 32px; }
-.logo-mark { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
-.logo-mark span { color: var(--accent); }
-.logo-sub { font-size: 11px; color: var(--dim); margin-top: 3px; letter-spacing: 0.3px; text-transform: uppercase; }
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: 8px;
-  font-size: 13px; color: var(--muted);
-  cursor: pointer; transition: all .15s;
-  margin-bottom: 2px; position: relative;
-}
-.nav-item:hover { background: var(--surface2); color: var(--text); }
-.nav-item.active { background: var(--accent-glow); color: var(--accent); }
-.nav-item.active::before {
-  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
-  width: 2px; background: var(--accent); border-radius: 2px;
-}
-.nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-badge {
-  margin-left: auto; background: var(--accent); color: white;
-  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
-}
-.nav-sep { height: 1px; background: var(--border); margin: 12px 0; }
-.sidebar-foot {
-  margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);
-  font-size: 11px; color: var(--dim); line-height: 1.7;
-}
-.db-status {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; margin-top: 8px; padding: 6px 8px;
-  border-radius: 6px; background: var(--surface2);
-}
-.db-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.db-dot.green { background: var(--green); }
-.db-dot.red { background: var(--red); }
-.db-dot.amber { background: var(--amber); animation: pulse 1.2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.main { flex: 1; overflow-y: auto; padding: 32px 40px; }
-h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
-.page-sub { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px; padding: 22px;
-  margin-bottom: 18px;
-}
-.card-title {
-  font-size: 13px; font-weight: 600; margin-bottom: 16px;
-  color: var(--text); display: flex; align-items: center; gap: 8px;
-}
-.btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 18px; border-radius: 8px;
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  border: none; transition: all .15s; font-family: inherit;
-}
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover { background: #3d6be6; }
-.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
-.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text); }
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-.btn-danger { background: var(--red-bg); border: 1px solid var(--red); color: var(--red); }
-.btn-danger:hover { opacity: .8; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
-.btn-xs { padding: 3px 9px; font-size: 11px; }
-.btn-green { background: var(--green-bg); border: 1px solid var(--green); color: var(--green); }
-.btn-green:hover { opacity: .85; }
-input[type=text], input[type=email], input[type=number], textarea, select {
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text); border-radius: 7px; padding: 8px 11px;
-  font-size: 12.5px; font-family: inherit; outline: none; transition: border .15s;
-  width: 100%;
-}
-input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-.field { margin-bottom: 12px; }
-.field label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; letter-spacing: 0.2px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.row-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-.drop-zone {
-  border: 1.5px dashed var(--border2); border-radius: 10px;
-  padding: 40px 24px; text-align: center; cursor: pointer;
-  transition: all .2s; position: relative;
-}
-.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--accent-glow); }
-.drop-zone input { display: none; }
-.drop-icon { font-size: 36px; margin-bottom: 10px; }
-.drop-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.drop-sub { font-size: 12px; color: var(--muted); }
-.stats-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
-.stat-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-.stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
-.stat.accent .stat-val { color: var(--accent); }
-.stat.green .stat-val { color: var(--green); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.data-table th {
-  background: var(--surface2); color: var(--muted); font-size: 11px;
-  font-weight: 600; text-align: left; padding: 9px 10px;
-  border-bottom: 1px solid var(--border); white-space: nowrap;
-}
-.data-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--surface2); }
-.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
-}
-.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid #1a4f35; }
-.badge-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid #4a3010; }
-.badge-blue { background: var(--accent-glow); color: var(--accent); border: 1px solid #1f3a80; }
-.badge-dim { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
-.note {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 11px 14px;
-  font-size: 12px; color: var(--muted); line-height: 1.6;
-}
-.note b { color: var(--text); }
-.note.info { border-color: #1f3a80; background: var(--accent-glow); color: #a0b4ff; }
-.note.success { border-color: #1a4f35; background: var(--green-bg); color: #7de8b6; }
-.note.warn { border-color: #4a3010; background: var(--amber-bg); color: #f5c872; }
-.progress-wrap { background: var(--surface2); border-radius: 4px; overflow: hidden; height: 6px; margin: 10px 0; }
-.progress-bar { height: 100%; background: var(--accent); width: 0; transition: width .2s; border-radius: 4px; }
-.profile-card {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 16px; position: relative;
-}
-.profile-card-name { font-weight: 700; font-size: 13px; }
-.profile-card-detail { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
-.profile-card-del { position: absolute; top: 10px; right: 10px; }
-.profiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 10px; margin-top: 12px; }
-/* INVOICE PREVIEW */
-.inv-paper {
-  background: #fff; color: #111; border-radius: 8px;
-  padding: 32px 36px; max-width: 760px; margin: 0 auto;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-  font-family: 'Arial', sans-serif; font-size: 10.5px; line-height: 1.4;
-}
-.inv-paper .inv-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.inv-paper .inv-title-block h2 { font-size: 17px; font-weight: 900; color: #111; margin-bottom: 1px; }
-.inv-paper .inv-title-block p { font-size: 10px; color: #555; }
-.inv-paper .inv-logo { font-size: 22px; font-weight: 900; color: #111; letter-spacing: -0.5px; }
-.inv-paper .inv-meta { text-align: right; font-size: 10px; color: #333; margin-bottom: 16px; }
-.inv-paper .inv-meta div { margin-bottom: 2px; }
-.inv-paper hr.inv-rule { border: none; border-top: 1.5px solid #222; margin: 10px 0; }
-.inv-paper hr.inv-rule-light { border: none; border-top: 1px solid #ddd; margin: 10px 0; }
-.inv-paper .inv-addr-row { display: flex; gap: 32px; margin: 14px 0; }
-.inv-paper .inv-addr-col { flex: 1; }
-.inv-paper .inv-addr-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #777; margin-bottom: 5px; }
-.inv-paper .inv-addr-body { font-size: 10.5px; color: #222; line-height: 1.55; }
-.inv-paper .inv-addr-body b { font-size: 11.5px; }
-table.inv-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10px; }
-table.inv-table th { background: #f2f2f2; border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-weight: 700; font-size: 9.5px; }
-table.inv-table td { border: 1px solid #ddd; padding: 7px 8px; vertical-align: top; }
-table.inv-table tr:nth-child(even) td { background: #fafafa; }
-.inv-totals { margin-left: auto; width: 280px; border-collapse: collapse; margin-top: 6px; }
-.inv-totals td { padding: 4px 8px; font-size: 10px; border: none; }
-.inv-totals .total-final td { font-weight: 800; font-size: 12px; border-top: 2px solid #111; padding-top: 6px; }
-.inv-words { font-size: 10.5px; background: #f9f9f9; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; margin: 8px 0; }
-.inv-from { font-size: 10.5px; background: #f9f9f9; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; margin: 6px 0 12px; font-weight: 600; }
-.inv-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #ddd; }
-.inv-sold-by { font-size: 9.5px; color: #333; line-height: 1.7; }
-.inv-sold-by .co-name { font-size: 11px; font-weight: 700; color: #111; margin-bottom: 3px; }
-.inv-sign { text-align: right; font-size: 9.5px; color: #555; }
-.inv-sign .sig-line { width: 130px; border-bottom: 1.5px solid #333; height: 36px; margin-left: auto; margin-bottom: 5px; }
-.inv-sign .sig-name { font-weight: 700; font-size: 11px; color: #111; }
-.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px; margin-top: 16px; }
-.result-card {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 16px; transition: border-color .15s;
-}
-.result-card:hover { border-color: var(--border2); }
-.rc-id { font-weight: 700; font-size: 13px; }
-.rc-merchant { font-size: 12px; color: var(--muted); margin: 3px 0 8px; }
-.rc-amount { font-size: 18px; font-weight: 800; color: var(--green); margin-bottom: 10px; }
-.rc-utr { font-size: 11px; color: var(--dim); margin-bottom: 10px; font-family: monospace; }
-.rc-actions { display: flex; gap: 6px; }
-#toast {
-  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 9px; padding: 12px 18px; font-size: 13px;
-  opacity: 0; transform: translateY(8px); pointer-events: none;
-  transition: all .25s; max-width: 340px;
-}
-#toast.show { opacity: 1; transform: translateY(0); }
-#toast.good { border-color: var(--green); color: var(--green); }
-#toast.bad { border-color: var(--red); color: var(--red); }
-.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9990; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 500px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
-.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
-.empty h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
-.empty p { font-size: 13px; }
-.logo-upload-zone {
-  width: 100%; height: 60px;
-  border: 1.5px dashed var(--border2); border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface2); overflow: hidden; transition: border-color .2s;
-}
-.logo-upload-zone:hover { border-color: var(--accent); }
-.logo-upload-zone img { max-height: 52px; max-width: 100%; object-fit: contain; padding: 4px; }
-.logo-upload-zone .logo-placeholder { font-size: 11px; color: var(--dim); }
-@media print { .sidebar, .main > *:not(#printTarget) { display: none; } #printTarget { display: block !important; } }
-</style>
+  </style>
 </head>
+
 <body>
-<div id="toast"></div>
-<div class="shell">
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-mark">Fidy<span>Invoice</span></div>
-      <div class="logo-sub">Settlement Generator</div>
-    </div>
-    <div class="nav-item active" data-page="invoices"><span class="nav-icon">🧾</span> Generate Invoices</div>
-    <div class="nav-sep"></div>
-    <div class="nav-item" data-page="profiles"><span class="nav-icon">🏢</span> Merchant Profiles<span class="nav-badge" id="profileCount">0</span></div>
-    <div class="nav-item" data-page="library"><span class="nav-icon">📁</span> Saved Invoices<span class="nav-badge" id="libCount">0</span></div>
-    <div class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> Seller Setup</div>
-    <div class="sidebar-foot">
-      <div class="db-status">
-        <div class="db-dot amber" id="dbDot"></div>
-        <span id="dbLabel">Connecting…</span>
+  <div id="toast"></div>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-mark">Fidy<span>Invoice</span></div>
+        <div class="logo-sub">Settlement Generator</div>
       </div>
-      Synced to Supabase cloud.<br>Data persists across devices.
-    </div>
-  </aside>
-  <main class="main" id="mainArea"></main>
-</div>
-<div id="printTarget" style="display:none;"></div>
+      <div class="nav-item active" data-page="invoices"><span class="nav-icon">🧾</span> Generate Invoices</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-page="profiles"><span class="nav-icon">🏢</span> Merchant Profiles<span
+          class="nav-badge" id="profileCount">0</span></div>
+      <div class="nav-item" data-page="library"><span class="nav-icon">📁</span> Saved Invoices<span class="nav-badge"
+          id="libCount">0</span></div>
+      <div class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> Seller Setup</div>
+      <div class="sidebar-foot">
+        <div class="db-status">
+          <div class="db-dot amber" id="dbDot"></div>
+          <span id="dbLabel">Connecting…</span>
+        </div>
+        Synced to Supabase cloud.<br>Data persists across devices.
+      </div>
+    </aside>
+    <main class="main" id="mainArea"></main>
+  </div>
+  <div id="printTarget" style="display:none;"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.2/jspdf.plugin.autotable.min.js"></script>
 
-<script>
-/* ═══════════════════════════════════════════════
-   SUPABASE CONFIG
-═══════════════════════════════════════════════ */
-const SUPA_URL = 'https://sabdnoadpwpirirqljkx.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhYmRub2FkcHdwaXJpcnFsamt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDYwNDYsImV4cCI6MjA5Nzc4MjA0Nn0.Z4YhL0REBTUBfd1GMNzTJGeANo-Lf1TV7MAMeSkZpMs';
-const BUCKET  = 'invoice-files';
+  <script>
+    /* ═══════════════════════════════════════════════
+       SUPABASE CONFIG
+    ═══════════════════════════════════════════════ */
+    const SUPA_URL = 'https://sabdnoadpwpirirqljkx.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhYmRub2FkcHdwaXJpcnFsamt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDYwNDYsImV4cCI6MjA5Nzc4MjA0Nn0.Z4YhL0REBTUBfd1GMNzTJGeANo-Lf1TV7MAMeSkZpMs';
+    const BUCKET = 'invoice-files';
 
-let supa = null;
-let supaReady = false;
+    let supa = null;
+    let supaReady = false;
 
-function initSupabase() {
-  try {
-    supa = supabase.createClient(SUPA_URL, SUPA_KEY);
-    return true;
-  } catch(e) {
-    console.error('Supabase init failed:', e);
-    return false;
-  }
-}
-
-function setDbStatus(state, label) {
-  const dot = document.getElementById('dbDot');
-  const lbl = document.getElementById('dbLabel');
-  if(dot) { dot.className = 'db-dot ' + state; }
-  if(lbl) lbl.textContent = label;
-}
-
-/* ═══════════════════════════════════════════════
-   SUPABASE DB HELPERS
-═══════════════════════════════════════════════ */
-async function dbSaveInvoice(obj) {
-  const { error } = await supa.from('invoices').upsert({
-    id            : obj.id,
-    inv_num       : obj.invNum,
-    merchant      : obj.merchant,
-    amount        : obj.amount,
-    utr           : obj.utr,
-    settlement_id : obj.settlementId,
-    pdf_url       : obj.pdfUrl || null,
-    docx_url      : obj.docxUrl || null,
-    row_data      : obj._row || null,
-    saved_at      : new Date(obj.savedAt).toISOString(),
-  }, { onConflict: 'id' });
-  if(error) throw error;
-}
-
-async function dbLoadInvoices() {
-  const { data, error } = await supa.from('invoices').select('*').order('saved_at', { ascending: false });
-  if(error) throw error;
-  return (data || []).map(r => ({
-    id          : r.id,
-    invNum      : r.inv_num,
-    merchant    : r.merchant,
-    amount      : r.amount,
-    utr         : r.utr,
-    settlementId: r.settlement_id,
-    pdfUrl      : r.pdf_url,
-    docxUrl     : r.docx_url,
-    savedAt     : new Date(r.saved_at).getTime(),
-    _row        : r.row_data,
-  }));
-}
-
-async function dbDeleteInvoice(id) {
-  const inv = S.savedInvoices.find(i => i.id === id);
-  if(inv) {
-    const paths = [];
-    if(inv.pdfUrl)  paths.push(inv.pdfUrl.split('/invoice-files/')[1]);
-    if(inv.docxUrl) paths.push(inv.docxUrl.split('/invoice-files/')[1]);
-    if(paths.length) await supa.storage.from(BUCKET).remove(paths);
-  }
-  const { error } = await supa.from('invoices').delete().eq('id', id);
-  if(error) throw error;
-}
-
-async function dbClearInvoices() {
-  const { data: files } = await supa.storage.from(BUCKET).list('invoices');
-  if(files && files.length) {
-    const paths = files.map(f => 'invoices/' + f.name);
-    await supa.storage.from(BUCKET).remove(paths);
-  }
-  const { error } = await supa.from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if(error) throw error;
-}
-
-const ROWS_SINGLETON_ID = '00000000-0000-0000-0000-000000000002';
-
-async function dbSaveRows(rows, fileName) {
-  const payload = {
-    id         : ROWS_SINGLETON_ID,
-    file_name  : fileName || null,
-    row_count  : rows.length,
-    rows       : rows,
-    uploaded_at: new Date().toISOString(),
-  };
-  const { error } = await supa.from('settlement_uploads').upsert(payload, { onConflict: 'id' });
-  if(error) throw error;
-}
-
-async function dbLoadRows() {
-  const { data, error } = await supa.from('settlement_uploads').select('*').eq('id', ROWS_SINGLETON_ID).single();
-  if(error && error.code !== 'PGRST116') throw error;
-  if(!data) return { rows: [], fileName: null };
-  return { rows: data.rows || [], fileName: data.file_name || null };
-}
-
-async function dbClearRows() {
-  const { error } = await supa.from('settlement_uploads').delete().eq('id', ROWS_SINGLETON_ID);
-  if(error) throw error;
-}
-
-async function dbSaveProfiles(profiles) {
-  await supa.from('merchant_profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if(!profiles.length) return;
-  const rows = profiles.map(p => ({
-    id        : p.id,
-    name      : p.name,
-    seller_id : p.sellerId || null,
-    gst       : p.gst || null,
-    pan       : p.pan || null,
-    cin       : p.cin || null,
-    email     : p.email || null,
-    address   : p.address || null,
-    city      : p.city || null,
-    state     : p.state || null,
-    pin       : p.pin || null,
-    logo_url  : p.logoUrl || null,
-  }));
-  const { error } = await supa.from('merchant_profiles').insert(rows);
-  if(error) throw error;
-}
-
-async function dbLoadProfiles() {
-  const { data, error } = await supa.from('merchant_profiles').select('*').order('name');
-  if(error) throw error;
-  return (data || []).map(r => ({
-    id       : r.id,
-    name     : r.name,
-    sellerId : r.seller_id,
-    gst      : r.gst,
-    pan      : r.pan,
-    cin      : r.cin,
-    email    : r.email,
-    address  : r.address,
-    city     : r.city,
-    state    : r.state,
-    pin      : r.pin,
-    logoUrl  : r.logo_url,
-    logoB64  : null,
-  }));
-}
-
-async function dbSaveCompany(co) {
-  let logoUrl = co.logoUrl || null;
-  if(co.logoB64 && co.logoB64.startsWith('data:')) {
-    try {
-      logoUrl = await uploadLogoToStorage(co.logoB64);
-    } catch(e) { console.warn('Logo upload failed, storing URL as-is', e); }
-  }
-  const payload = {
-    id               : '00000000-0000-0000-0000-000000000001',
-    name             : co.name || null,
-    pan              : co.pan || null,
-    gst              : co.gst || null,
-    cin              : co.cin || null,
-    email            : co.email || null,
-    phone            : co.phone || null,
-    address          : co.address || null,
-    city             : co.city || null,
-    state            : co.state || null,
-    pin              : co.pin || null,
-    signatory        : co.signatory || null,
-    designation      : co.designation || null,
-    default_gst_rate : co.defaultGstRate ?? 18,
-    logo_url         : logoUrl,
-    updated_at       : new Date().toISOString(),
-  };
-  const { error } = await supa.from('company_settings').upsert(payload, { onConflict: 'id' });
-  if(error) throw error;
-  return logoUrl;
-}
-
-async function dbLoadCompany() {
-  const { data, error } = await supa.from('company_settings').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single();
-  if(error && error.code !== 'PGRST116') throw error;
-  if(!data) return null;
-  return {
-    name           : data.name,
-    pan            : data.pan,
-    gst            : data.gst,
-    cin            : data.cin,
-    email          : data.email,
-    phone          : data.phone,
-    address        : data.address,
-    city           : data.city,
-    state          : data.state,
-    pin            : data.pin,
-    signatory      : data.signatory,
-    designation    : data.designation,
-    defaultGstRate : data.default_gst_rate,
-    logoUrl        : data.logo_url,
-    logoB64        : null,
-  };
-}
-
-/* ═══════════════════════════════════════════════
-   STORAGE HELPERS
-═══════════════════════════════════════════════ */
-async function uploadToStorage(blob, path, mime) {
-  const { data, error } = await supa.storage.from(BUCKET).upload(path, blob, {
-    contentType: mime, upsert: true,
-  });
-  if(error) throw error;
-  const { data: urlData } = supa.storage.from(BUCKET).getPublicUrl(path);
-  return urlData.publicUrl;
-}
-
-async function uploadLogoToStorage(base64) {
-  const mime = base64.split(';')[0].split(':')[1] || 'image/png';
-  const ext  = mime.includes('jpeg') ? 'jpg' : mime.includes('svg') ? 'svg' : 'png';
-  const blob = b64ToBlob(base64, mime);
-  return await uploadToStorage(blob, `logos/company-logo.${ext}`, mime);
-}
-
-async function uploadProfileLogoToStorage(base64, profileId) {
-  const mime = base64.split(';')[0].split(':')[1] || 'image/png';
-  const ext  = mime.includes('jpeg') ? 'jpg' : mime.includes('svg') ? 'svg' : 'png';
-  const blob = b64ToBlob(base64, mime);
-  return await uploadToStorage(blob, `logos/profile-${profileId}.${ext}`, mime);
-}
-
-async function uploadInvoiceFiles(invNum, pdfBlob, docxBlob) {
-  const safe = invNum.replace(/[^a-zA-Z0-9\-_]/g, '_');
-  let pdfUrl = null, docxUrl = null;
-  if(pdfBlob)  pdfUrl  = await uploadToStorage(pdfBlob,  `invoices/${safe}.pdf`,  'application/pdf');
-  if(docxBlob) docxUrl = await uploadToStorage(docxBlob, `invoices/${safe}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-  return { pdfUrl, docxUrl };
-}
-
-/* ═══════════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════════ */
-const S = {
-  page: 'invoices',
-  rows: [],
-  uploadedFileName: null,
-  profiles: [],
-  company: null,
-  savedInvoices: [],
-  generated: [],
-};
-
-/* ═══════════════════════════════════════════════
-   UTILS
-═══════════════════════════════════════════════ */
-const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const uid = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,18);
-const fmt = ts => new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-const cleanNum = v => {
-  if(v === null || v === undefined || v === '') return 0;
-  if(typeof v === 'number') return isNaN(v) ? 0 : v;
-  const s = String(v).replace(/[₹,\s]/g, '').trim();
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
-};
-const fmtINR = n => '₹'+cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-
-function wrapAddressLines(addr, maxLineLen) {
-  if(!addr) return '';
-  maxLineLen = maxLineLen || 45;
-  const parts = String(addr).split(',').map(s => s.trim()).filter(Boolean);
-  const lines = [];
-  let cur = [], curLen = 0;
-  parts.forEach(p => {
-    if(curLen + p.length > maxLineLen && cur.length) {
-      lines.push(cur.join(', '));
-      cur = []; curLen = 0;
+    function initSupabase() {
+      try {
+        supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+        return true;
+      } catch (e) {
+        console.error('Supabase init failed:', e);
+        return false;
+      }
     }
-    cur.push(p); curLen += p.length + 2;
-  });
-  if(cur.length) lines.push(cur.join(', '));
-  return lines.map(esc).join(',<br>');
-}
 
-function b64ToBlob(d, mime) {
-  if(!d) return null;
-  const bin = atob(d.split(',')[1]);
-  const arr = new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-  return new Blob([arr],{type:mime});
-}
-const b64 = blob => new Promise((res,rej)=>{ if(!blob) return res(null); const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r.readAsDataURL(blob); });
-
-async function urlToDataURL(url) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    return await b64(blob);
-  } catch(e) {
-    console.warn('Could not fetch logo for PDF embedding:', e);
-    return null;
-  }
-}
-
-/* ═══════════════════════════════════════════════
-   GST ENGINE
-═══════════════════════════════════════════════ */
-function calcGST(totalAmount, gstRate, sellerState, buyerState) {
-  const rate  = cleanNum(gstRate) || 18;
-  const total = cleanNum(totalAmount);
-  const base  = parseFloat((total / (1 + rate / 100)).toFixed(2));
-  const tax   = parseFloat((total - base).toFixed(2));
-  const sA = (sellerState || '').toLowerCase().trim();
-  const sB = (buyerState  || '').toLowerCase().trim();
-  const sameState = sA && sB && sA === sB;
-  if(sameState) {
-    const half = parseFloat((tax / 2).toFixed(2));
-    return { base, total, rate, taxType:'CGST+SGST', cgst:half, sgst:half, igst:0, taxLabel:`CGST ${rate/2}% + SGST ${rate/2}%`, taxAmt:tax, isSame:true };
-  } else {
-    return { base, total, rate, taxType:'IGST', cgst:0, sgst:0, igst:tax, taxLabel:`IGST ${rate}%`, taxAmt:tax, isSame:false };
-  }
-}
-
-function getGSTInfo(row, profile) {
-  const co = S.company || {};
-  const p  = profile   || {};
-  const rate = cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18);
-  const total = cleanNum(row['Transaction Amount']);
-  return calcGST(total, rate, co.state || '', row['_billState'] || p.state || '');
-}
-
-function triggerDL(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=name;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
-}
-
-let toastT;
-function toast(msg, type='') {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'show '+(type||'');
-  clearTimeout(toastT); toastT = setTimeout(()=>el.className='',3500);
-}
-
-function numWords(n) {
-  n = Math.round(n);
-  const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  const b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  if(n===0) return 'Zero';
-  function words(num) {
-    if(num<20) return a[num];
-    if(num<100) return b[Math.floor(num/10)]+(num%10?' '+a[num%10]:'');
-    if(num<1000) return a[Math.floor(num/100)]+' Hundred'+(num%100?' '+words(num%100):'');
-    if(num<100000) return words(Math.floor(num/1000))+' Thousand'+(num%1000?' '+words(num%1000):'');
-    if(num<10000000) return words(Math.floor(num/100000))+' Lakh'+(num%100000?' '+words(num%100000):'');
-    return words(Math.floor(num/10000000))+' Crore'+(num%10000000?' '+words(num%10000000):'');
-  }
-  return words(n)+' Only';
-}
-
-/* ═══════════════════════════════════════════════
-   UPDATED INVOICE GENERATOR & PROCESSOR BLOCK
-═══════════════════════════════════════════════ */
-function genInvNum(row) {
-  if(row['_invNum']) return row['_invNum'];
-
-  // Grab the full Seller Settlement Records ID
-  let settlementId = String(row['Seller Settlement Records ID'] || '').trim();
-
-  // Fallback to slice dynamic UUID if settlement ID is completely missing
-  if (!settlementId) {
-    let baseId = String(uid()).slice(-8);
-    return 'INV-' + baseId;
-  }
-
-  // Swapping the prefix out if it matches the '41' rule
-  if(settlementId.startsWith('41')) {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, '0'); // "06"
-    const yy = String(now.getFullYear()).slice(-2);       // "26"
-
-    // Replaces the first 4 characters with the current MMYY ('0626')
-    settlementId = mm + yy + settlementId.slice(4);
-  }
-
-  return 'INV-' + settlementId;
-}
-
-function parseDate(raw) {
-  if(!raw) return '';
-  if(raw instanceof Date) return raw.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
-  if(typeof raw === 'number' && raw > 1000) {
-    const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
-    return d.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
-  }
-  const s = String(raw).trim();
-  const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
-  if(m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}/${m[3]}`;
-  return s;
-}
-
-function getLogoSrc() {
-  const co = S.company || {};
-  return co.logoUrl || co.logoB64 || null;
-}
-
-function getProfileLogo(profile) {
-  if(!profile) return null;
-  return profile.logoUrl || profile.logoB64 || null;
-}
-
-/* File/storage name — always INV-{raw Settlement Record ID}, regardless of
-   any MMYY-prefix swap or manual edits applied to the on-document invoice number. */
-function sanitizeFileBase(s) {
-  return String(s||'').replace(/[^a-zA-Z0-9\-_]/g, '_');
-}
-function genFileName(row) {
-  const settlementId = String(row['Seller Settlement Records ID'] || '').trim();
-  const base = settlementId ? ('INV-' + settlementId) : genInvNum(row);
-  return sanitizeFileBase(base);
-}
-
-/* ═══════════════════════════════════════════════
-   EXCEL → FIELD MAPPING REFACTOR
-═══════════════════════════════════════════════ */
-function extractAddressFieldsFromRow(row) {
-  const pick = (...keys) => {
-    for(const k of keys) {
-      if(row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return String(row[k]).trim();
+    function setDbStatus(state, label) {
+      const dot = document.getElementById('dbDot');
+      const lbl = document.getElementById('dbLabel');
+      if (dot) { dot.className = 'db-dot ' + state; }
+      if (lbl) lbl.textContent = label;
     }
-    return '';
-  };
 
-  // Prioritized 'Product List' header map above everything else
-  const productDesc = pick('Product List', 'Product Description', 'Item Description', 'Description', 'Product Details', 'Transaction Type');
-  const personName  = pick('Name', 'Customer Name', 'Billing Name', 'Bill To Name', 'Buyer Name');
+    /* ═══════════════════════════════════════════════
+       SUPABASE DB HELPERS
+    ═══════════════════════════════════════════════ */
+    async function dbSaveInvoice(obj) {
+      const { error } = await supa.from('invoices').upsert({
+        id: obj.id,
+        inv_num: obj.invNum,
+        merchant: obj.merchant,
+        amount: obj.amount,
+        utr: obj.utr,
+        settlement_id: obj.settlementId,
+        pdf_url: obj.pdfUrl || null,
+        docx_url: obj.docxUrl || null,
+        row_data: obj._row || null,
+        saved_at: new Date(obj.savedAt).toISOString(),
+      }, { onConflict: 'id' });
+      if (error) throw error;
+    }
 
-  const billAddress = pick('Billing Address','Bill To Address','Buyer Address','Billing Address Line','Address');
-  const billCity     = pick('Billing City','Bill City','City');
-  const billState    = pick('Billing State','Bill State','State');
-  const billPin      = pick('Billing Pincode','Billing PIN','Bill Pincode','Pincode','PIN Code','PIN');
-  const billGST      = pick('Billing GST','Buyer GST','GSTIN','GST Number','GST No');
-  const billPAN      = pick('Billing PAN','Buyer PAN','PAN Number','PAN No');
+    async function dbLoadInvoices() {
+      const { data, error } = await supa.from('invoices').select('*').order('saved_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(r => ({
+        id: r.id,
+        invNum: r.inv_num,
+        merchant: r.merchant,
+        amount: r.amount,
+        utr: r.utr,
+        settlementId: r.settlement_id,
+        pdfUrl: r.pdf_url,
+        docxUrl: r.docx_url,
+        savedAt: new Date(r.saved_at).getTime(),
+        _row: r.row_data,
+      }));
+    }
 
-  const shipName    = pick('Shipping Name','Ship To Name','Consignee Name','Delivery Name');
-  const shipAddress = pick('Shipping Address','Ship To Address','Consignee Address','Delivery Address');
-  const shipCity     = pick('Shipping City','Ship City','Delivery City');
-  const shipState    = pick('Shipping State','Ship State','Delivery State');
-  const shipPin      = pick('Shipping Pincode','Shipping PIN','Ship Pincode','Delivery Pincode');
+    async function dbDeleteInvoice(id) {
+      const inv = S.savedInvoices.find(i => i.id === id);
+      if (inv) {
+        const paths = [];
+        if (inv.pdfUrl) paths.push(inv.pdfUrl.split('/invoice-files/')[1]);
+        if (inv.docxUrl) paths.push(inv.docxUrl.split('/invoice-files/')[1]);
+        if (paths.length) await supa.storage.from(BUCKET).remove(paths);
+      }
+      const { error } = await supa.from('invoices').delete().eq('id', id);
+      if (error) throw error;
+    }
 
-  if(!row['_billName'])    row['_billName']    = personName || row['Seller Name'] || '';
-  if(!row['_billAddress']) row['_billAddress'] = billAddress;
-  if(!row['_billCity'])    row['_billCity']    = billCity;
-  if(!row['_billState'])   row['_billState']   = billState;
-  if(!row['_billPin'])     row['_billPin']     = billPin;
-  if(!row['_billGST'])     row['_billGST']     = billGST;
-  if(!row['_billPAN'])     row['_billPAN']     = billPAN;
+    async function dbClearInvoices() {
+      const { data: files } = await supa.storage.from(BUCKET).list('invoices');
+      if (files && files.length) {
+        const paths = files.map(f => 'invoices/' + f.name);
+        await supa.storage.from(BUCKET).remove(paths);
+      }
+      const { error } = await supa.from('invoices').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+    }
 
-  if(!row['_shipName'])    row['_shipName']    = shipName    || row['_billName'];
-  if(!row['_shipAddress']) row['_shipAddress'] = shipAddress || row['_billAddress'];
-  if(!row['_shipCity'])    row['_shipCity']    = shipCity    || row['_billCity'];
-  if(!row['_shipState'])   row['_shipState']   = shipState   || row['_billState'];
-  if(!row['_shipPin'])     row['_shipPin']     = shipPin     || row['_billPin'];
+    const ROWS_SINGLETON_ID = '00000000-0000-0000-0000-000000000002';
 
-  if(!row['_description']) row['_description'] = productDesc;
+    async function dbSaveRows(rows, fileName) {
+      const payload = {
+        id: ROWS_SINGLETON_ID,
+        file_name: fileName || null,
+        row_count: rows.length,
+        rows: rows,
+        uploaded_at: new Date().toISOString(),
+      };
+      const { error } = await supa.from('settlement_uploads').upsert(payload, { onConflict: 'id' });
+      if (error) throw error;
+    }
 
-  return row;
-}
+    async function dbLoadRows() {
+      const { data, error } = await supa.from('settlement_uploads').select('*').eq('id', ROWS_SINGLETON_ID).single();
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) return { rows: [], fileName: null };
+      return { rows: data.rows || [], fileName: data.file_name || null };
+    }
 
-/* ═══════════════════════════════════════════════
-   ROUTER
-═══════════════════════════════════════════════ */
-function goto(page) {
-  S.page = page;
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.page === page);
-  });
-  render();
-}
-document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', () => goto(el.dataset.page));
-});
+    async function dbClearRows() {
+      const { error } = await supa.from('settlement_uploads').delete().eq('id', ROWS_SINGLETON_ID);
+      if (error) throw error;
+    }
 
-function render() {
-  const m = document.getElementById('mainArea');
-  if(S.page==='invoices') { m.innerHTML = viewInvoices(); wireInvoices(); }
-  if(S.page==='profiles') { m.innerHTML = viewProfiles(); wireProfiles(); }
-  if(S.page==='library')  { m.innerHTML = viewLibrary();  wireLibrary(); }
-  if(S.page==='settings') { m.innerHTML = viewSettings(); wireSettings(); }
-  updateBadges();
-}
+    async function dbSaveProfiles(profiles) {
+      await supa.from('merchant_profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (!profiles.length) return;
+      const rows = profiles.map(p => ({
+        id: p.id,
+        name: p.name,
+        seller_id: p.sellerId || null,
+        gst: p.gst || null,
+        pan: p.pan || null,
+        cin: p.cin || null,
+        email: p.email || null,
+        address: p.address || null,
+        city: p.city || null,
+        state: p.state || null,
+        pin: p.pin || null,
+        logo_url: p.logoUrl || null,
+      }));
+      const { error } = await supa.from('merchant_profiles').insert(rows);
+      if (error) throw error;
+    }
 
-function updateBadges() {
-  document.getElementById('profileCount').textContent = S.profiles.length;
-  document.getElementById('libCount').textContent = S.savedInvoices.length;
-}
+    async function dbLoadProfiles() {
+      const { data, error } = await supa.from('merchant_profiles').select('*').order('name');
+      if (error) throw error;
+      return (data || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        sellerId: r.seller_id,
+        gst: r.gst,
+        pan: r.pan,
+        cin: r.cin,
+        email: r.email,
+        address: r.address,
+        city: r.city,
+        state: r.state,
+        pin: r.pin,
+        logoUrl: r.logo_url,
+        logoB64: null,
+      }));
+    }
 
-/* ═══════════════════════════════════════════════
-   PAGE: GENERATE INVOICES
-═══════════════════════════════════════════════ */
-function viewInvoices() {
-  const rows = S.rows;
-  const gen  = S.generated;
-  const totalAmt = rows.reduce((s,r)=>s+cleanNum(r['Transaction Amount']),0);
-  const sellers  = [...new Set(rows.map(r=>r['Seller Name']))].filter(Boolean);
+    async function dbSaveCompany(co) {
+      let logoUrl = co.logoUrl || null;
+      if (co.logoB64 && co.logoB64.startsWith('data:')) {
+        try {
+          logoUrl = await uploadLogoToStorage(co.logoB64);
+        } catch (e) { console.warn('Logo upload failed, storing URL as-is', e); }
+      }
+      const payload = {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: co.name || null,
+        pan: co.pan || null,
+        gst: co.gst || null,
+        cin: co.cin || null,
+        email: co.email || null,
+        phone: co.phone || null,
+        address: co.address || null,
+        city: co.city || null,
+        state: co.state || null,
+        pin: co.pin || null,
+        signatory: co.signatory || null,
+        designation: co.designation || null,
+        default_gst_rate: co.defaultGstRate ?? 18,
+        logo_url: logoUrl,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supa.from('company_settings').upsert(payload, { onConflict: 'id' });
+      if (error) throw error;
+      return logoUrl;
+    }
 
-  return `
+    async function dbLoadCompany() {
+      const { data, error } = await supa.from('company_settings').select('*').eq('id', '00000000-0000-0000-0000-000000000001').single();
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) return null;
+      return {
+        name: data.name,
+        pan: data.pan,
+        gst: data.gst,
+        cin: data.cin,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        pin: data.pin,
+        signatory: data.signatory,
+        designation: data.designation,
+        defaultGstRate: data.default_gst_rate,
+        logoUrl: data.logo_url,
+        logoB64: null,
+      };
+    }
+
+    /* ═══════════════════════════════════════════════
+       STORAGE HELPERS
+    ═══════════════════════════════════════════════ */
+    async function uploadToStorage(blob, path, mime) {
+      const { data, error } = await supa.storage.from(BUCKET).upload(path, blob, {
+        contentType: mime, upsert: true,
+      });
+      if (error) throw error;
+      const { data: urlData } = supa.storage.from(BUCKET).getPublicUrl(path);
+      return urlData.publicUrl;
+    }
+
+    async function uploadLogoToStorage(base64) {
+      const mime = base64.split(';')[0].split(':')[1] || 'image/png';
+      const ext = mime.includes('jpeg') ? 'jpg' : mime.includes('svg') ? 'svg' : 'png';
+      const blob = b64ToBlob(base64, mime);
+      return await uploadToStorage(blob, `logos/company-logo.${ext}`, mime);
+    }
+
+    async function uploadProfileLogoToStorage(base64, profileId) {
+      const mime = base64.split(';')[0].split(':')[1] || 'image/png';
+      const ext = mime.includes('jpeg') ? 'jpg' : mime.includes('svg') ? 'svg' : 'png';
+      const blob = b64ToBlob(base64, mime);
+      return await uploadToStorage(blob, `logos/profile-${profileId}.${ext}`, mime);
+    }
+
+    async function uploadInvoiceFiles(invNum, pdfBlob, docxBlob) {
+      const safe = invNum.replace(/[^a-zA-Z0-9\-_]/g, '_');
+      let pdfUrl = null, docxUrl = null;
+      if (pdfBlob) pdfUrl = await uploadToStorage(pdfBlob, `invoices/${safe}.pdf`, 'application/pdf');
+      if (docxBlob) docxUrl = await uploadToStorage(docxBlob, `invoices/${safe}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      return { pdfUrl, docxUrl };
+    }
+
+    /* ═══════════════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════════════ */
+    const S = {
+      page: 'invoices',
+      rows: [],
+      uploadedFileName: null,
+      profiles: [],
+      company: null,
+      savedInvoices: [],
+      generated: [],
+    };
+
+    /* ═══════════════════════════════════════════════
+       UTILS
+    ═══════════════════════════════════════════════ */
+    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const uid = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 18);
+    const fmt = ts => new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const cleanNum = v => {
+      if (v === null || v === undefined || v === '') return 0;
+      if (typeof v === 'number') return isNaN(v) ? 0 : v;
+      const s = String(v).replace(/[₹,\s]/g, '').trim();
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    };
+    const fmtINR = n => '₹' + cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function wrapAddressLines(addr, maxLineLen) {
+      if (!addr) return '';
+      maxLineLen = maxLineLen || 45;
+      const parts = String(addr).split(',').map(s => s.trim()).filter(Boolean);
+      const lines = [];
+      let cur = [], curLen = 0;
+      parts.forEach(p => {
+        if (curLen + p.length > maxLineLen && cur.length) {
+          lines.push(cur.join(', '));
+          cur = []; curLen = 0;
+        }
+        cur.push(p); curLen += p.length + 2;
+      });
+      if (cur.length) lines.push(cur.join(', '));
+      return lines.map(esc).join(',<br>');
+    }
+
+    function b64ToBlob(d, mime) {
+      if (!d) return null;
+      const bin = atob(d.split(',')[1]);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+    const b64 = blob => new Promise((res, rej) => { if (!blob) return res(null); const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+
+    async function urlToDataURL(url) {
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return await b64(blob);
+      } catch (e) {
+        console.warn('Could not fetch logo for PDF embedding:', e);
+        return null;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════
+       GST ENGINE
+    ═══════════════════════════════════════════════ */
+    function calcGST(totalAmount, gstRate, sellerState, buyerState) {
+      const rate = cleanNum(gstRate) || 18;
+      const total = cleanNum(totalAmount);
+      const base = parseFloat((total / (1 + rate / 100)).toFixed(2));
+      const tax = parseFloat((total - base).toFixed(2));
+      const sA = (sellerState || '').toLowerCase().trim();
+      const sB = (buyerState || '').toLowerCase().trim();
+      const sameState = sA && sB && sA === sB;
+      if (sameState) {
+        const half = parseFloat((tax / 2).toFixed(2));
+        return { base, total, rate, taxType: 'CGST+SGST', cgst: half, sgst: half, igst: 0, taxLabel: `CGST ${rate / 2}% + SGST ${rate / 2}%`, taxAmt: tax, isSame: true };
+      } else {
+        return { base, total, rate, taxType: 'IGST', cgst: 0, sgst: 0, igst: tax, taxLabel: `IGST ${rate}%`, taxAmt: tax, isSame: false };
+      }
+    }
+
+    function getGSTInfo(row, profile) {
+      const co = S.company || {};
+      const p = profile || {};
+      const rate = cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18);
+      const total = cleanNum(row['Transaction Amount']);
+      return calcGST(total, rate, co.state || '', row['_billState'] || p.state || '');
+    }
+
+    function triggerDL(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    }
+
+    let toastT;
+    function toast(msg, type = '') {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.className = 'show ' + (type || '');
+      clearTimeout(toastT); toastT = setTimeout(() => el.className = '', 3500);
+    }
+
+    function numWords(n) {
+      n = Math.round(n);
+      const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+      const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+      if (n === 0) return 'Zero';
+      function words(num) {
+        if (num < 20) return a[num];
+        if (num < 100) return b[Math.floor(num / 10)] + (num % 10 ? ' ' + a[num % 10] : '');
+        if (num < 1000) return a[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' ' + words(num % 100) : '');
+        if (num < 100000) return words(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 ? ' ' + words(num % 1000) : '');
+        if (num < 10000000) return words(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 ? ' ' + words(num % 100000) : '');
+        return words(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 ? ' ' + words(num % 10000000) : '');
+      }
+      return words(n) + ' Only';
+    }
+
+    /* ═══════════════════════════════════════════════
+       UPDATED INVOICE GENERATOR & PROCESSOR BLOCK
+    ═══════════════════════════════════════════════ */
+    function genInvNum(row) {
+      if (row['_invNum']) return row['_invNum'];
+
+      // Grab the full Seller Settlement Records ID
+      let settlementId = String(row['Seller Settlement Records ID'] || '').trim();
+
+      // Fallback to slice dynamic UUID if settlement ID is completely missing
+      if (!settlementId) {
+        let baseId = String(uid()).slice(-8);
+        return 'INV-' + baseId;
+      }
+
+      // Swapping the prefix out if it matches the '41' rule
+      if (settlementId.startsWith('41')) {
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0'); // "06"
+        const yy = String(now.getFullYear()).slice(-2);       // "26"
+
+        // Replaces the first 4 characters with the current MMYY ('0626')
+        settlementId = mm + yy + settlementId.slice(4);
+      }
+
+      return 'INV-' + settlementId;
+    }
+
+    function parseDate(raw) {
+      if (!raw) return '';
+      if (raw instanceof Date) return raw.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      if (typeof raw === 'number' && raw > 1000) {
+        const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+        return d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+      const s = String(raw).trim();
+      const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
+      if (m) return `${String(m[1]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[3]}`;
+      return s;
+    }
+
+    function getLogoSrc() {
+      const co = S.company || {};
+      return co.logoUrl || co.logoB64 || null;
+    }
+
+    function getProfileLogo(profile) {
+      if (!profile) return null;
+      return profile.logoUrl || profile.logoB64 || null;
+    }
+
+    /* File/storage name — always INV-{raw Settlement Record ID}, regardless of
+       any MMYY-prefix swap or manual edits applied to the on-document invoice number. */
+    function sanitizeFileBase(s) {
+      return String(s || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
+    }
+    function genFileName(row) {
+      const settlementId = String(row['Seller Settlement Records ID'] || '').trim();
+      const base = settlementId ? ('INV-' + settlementId) : genInvNum(row);
+      return sanitizeFileBase(base);
+    }
+
+    /* ═══════════════════════════════════════════════
+       EXCEL → FIELD MAPPING REFACTOR
+    ═══════════════════════════════════════════════ */
+    function extractAddressFieldsFromRow(row) {
+      const pick = (...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return String(row[k]).trim();
+        }
+        return '';
+      };
+
+      // Prioritized 'Product List' header map above everything else
+      const productDesc = pick('Product List', 'Product Description', 'Item Description', 'Description', 'Product Details', 'Transaction Type');
+      const personName = pick('Name', 'Customer Name', 'Billing Name', 'Bill To Name', 'Buyer Name');
+
+      const billAddress = pick('Billing Address', 'Bill To Address', 'Buyer Address', 'Billing Address Line', 'Address');
+      const billCity = pick('Billing City', 'Bill City', 'City');
+      const billState = pick('Billing State', 'Bill State', 'State');
+      const billPin = pick('Billing Pincode', 'Billing PIN', 'Bill Pincode', 'Pincode', 'PIN Code', 'PIN');
+      const billGST = pick('Billing GST', 'Buyer GST', 'GSTIN', 'GST Number', 'GST No');
+      const billPAN = pick('Billing PAN', 'Buyer PAN', 'PAN Number', 'PAN No');
+
+      const shipName = pick('Shipping Name', 'Ship To Name', 'Consignee Name', 'Delivery Name');
+      const shipAddress = pick('Shipping Address', 'Ship To Address', 'Consignee Address', 'Delivery Address');
+      const shipCity = pick('Shipping City', 'Ship City', 'Delivery City');
+      const shipState = pick('Shipping State', 'Ship State', 'Delivery State');
+      const shipPin = pick('Shipping Pincode', 'Shipping PIN', 'Ship Pincode', 'Delivery Pincode');
+
+      if (!row['_billName']) row['_billName'] = personName || row['Seller Name'] || '';
+      if (!row['_billAddress']) row['_billAddress'] = billAddress;
+      if (!row['_billCity']) row['_billCity'] = billCity;
+      if (!row['_billState']) row['_billState'] = billState;
+      if (!row['_billPin']) row['_billPin'] = billPin;
+      if (!row['_billGST']) row['_billGST'] = billGST;
+      if (!row['_billPAN']) row['_billPAN'] = billPAN;
+
+      if (!row['_shipName']) row['_shipName'] = shipName || row['_billName'];
+      if (!row['_shipAddress']) row['_shipAddress'] = shipAddress || row['_billAddress'];
+      if (!row['_shipCity']) row['_shipCity'] = shipCity || row['_billCity'];
+      if (!row['_shipState']) row['_shipState'] = shipState || row['_billState'];
+      if (!row['_shipPin']) row['_shipPin'] = shipPin || row['_billPin'];
+
+      if (!row['_description']) row['_description'] = productDesc;
+
+      return row;
+    }
+
+    /* ═══════════════════════════════════════════════
+       ROUTER
+    ═══════════════════════════════════════════════ */
+    function goto(page) {
+      S.page = page;
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+      render();
+    }
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.addEventListener('click', () => goto(el.dataset.page));
+    });
+
+    function render() {
+      const m = document.getElementById('mainArea');
+      if (S.page === 'invoices') { m.innerHTML = viewInvoices(); wireInvoices(); }
+      if (S.page === 'profiles') { m.innerHTML = viewProfiles(); wireProfiles(); }
+      if (S.page === 'library') { m.innerHTML = viewLibrary(); wireLibrary(); }
+      if (S.page === 'settings') { m.innerHTML = viewSettings(); wireSettings(); }
+      updateBadges();
+    }
+
+    function updateBadges() {
+      document.getElementById('profileCount').textContent = S.profiles.length;
+      document.getElementById('libCount').textContent = S.savedInvoices.length;
+    }
+
+    /* ═══════════════════════════════════════════════
+       PAGE: GENERATE INVOICES
+    ═══════════════════════════════════════════════ */
+    function viewInvoices() {
+      const rows = S.rows;
+      const gen = S.generated;
+      const totalAmt = rows.reduce((s, r) => s + cleanNum(r['Transaction Amount']), 0);
+      const sellers = [...new Set(rows.map(r => r['Seller Name']))].filter(Boolean);
+
+      return `
   <div style="margin-bottom:24px;">
     <h1>Generate Settlement Invoices</h1>
     <p class="page-sub">Upload your Fidypay settlement Excel — dynamic Product List item parsing applied.</p>
@@ -827,20 +1553,20 @@ function viewInvoices() {
           <th>Transaction Date</th><th>Amount</th><th>GST</th><th>Product List Item</th><th>Actions</th>
         </tr></thead>
         <tbody>
-          ${rows.map((r,i) => {
-            const profile = S.profiles.find(p => matchProfile(p, r['Seller Name']));
-            const gst     = getGSTInfo(r, profile);
-            return `<tr>
-              <td style="color:var(--dim);font-size:11px;">${i+1}</td>
+          ${rows.map((r, i) => {
+        const profile = S.profiles.find(p => matchProfile(p, r['Seller Name']));
+        const gst = getGSTInfo(r, profile);
+        return `<tr>
+              <td style="color:var(--dim);font-size:11px;">${i + 1}</td>
               <td>
-                <div style="font-weight:600;font-size:12.5px;">${esc(r['_billName']||'—')}</div>
+                <div style="font-weight:600;font-size:12.5px;">${esc(r['_billName'] || '—')}</div>
               </td>
-              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Seller Settlement Records ID']||'')}</td>
-              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Transaction UTR Number']||'')}</td>
+              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Seller Settlement Records ID'] || '')}</td>
+              <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(r['Transaction UTR Number'] || '')}</td>
               <td style="font-size:12px;">${esc(parseDate(r['Transaction Date']))}</td>
-              <td style="font-weight:700;color:var(--green);">${fmtINR(r['Transaction Amount']||0)}</td>
+              <td style="font-weight:700;color:var(--green);">${fmtINR(r['Transaction Amount'] || 0)}</td>
               <td style="font-size:11px;">
-                <span class="badge ${gst.isSame?'badge-blue':'badge-amber'}" style="font-size:10px;">${gst.taxLabel}</span><br>
+                <span class="badge ${gst.isSame ? 'badge-blue' : 'badge-amber'}" style="font-size:10px;">${gst.taxLabel}</span><br>
                 <span style="color:var(--muted);font-size:10px;">Tax: ${fmtINR(gst.taxAmt)}</span>
               </td>
               <td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--accent);">${esc(r['_description'] || '—')}</td>
@@ -851,7 +1577,7 @@ function viewInvoices() {
                 </div>
               </td>
             </tr>`;
-          }).join('')}
+      }).join('')}
         </tbody>
       </table>
     </div>
@@ -891,191 +1617,191 @@ function viewInvoices() {
       </div>`).join('')}
     </div>
   </div>` : ''}`;
-}
-
-function wireInvoices() {
-  const drop = document.getElementById('dropZone');
-  const inp  = document.getElementById('fileInput');
-  if(drop) {
-    drop.addEventListener('click', () => inp.click());
-    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
-    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
-    drop.addEventListener('drop', e => { if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-    inp.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
-  }
-  document.getElementById('clearDataBtn')?.addEventListener('click', async () => {
-    S.rows=[]; S.generated=[]; S.uploadedFileName=null;
-    render();
-    if(supaReady) {
-      try { await dbClearRows(); toast('Cleared uploaded data from cloud.',''); }
-      catch(e) { toast('Cloud clear failed: '+e.message,'bad'); }
     }
-  });
-  document.getElementById('genAllBtn')?.addEventListener('click', generateAll);
-  document.getElementById('zipAllBtn')?.addEventListener('click', downloadZip);
-  document.getElementById('viewLibBtn')?.addEventListener('click', () => goto('library'));
-  document.querySelectorAll('[data-preview]').forEach(btn => btn.addEventListener('click', () => showPreviewModal(S.rows[+btn.dataset.preview])));
-  document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => showEditModal(+btn.dataset.edit)));
-  document.querySelectorAll('[data-dl-pdf]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const g = S.generated.find(x=>x.id===btn.dataset.dlPdf);
-      if(g && g.pdfBlob) triggerDL(g.pdfBlob, (g.fileName||g.invNum)+'.pdf');
-      else if(g && g.pdfUrl) window.open(g.pdfUrl, '_blank');
-    });
-  });
-  document.querySelectorAll('[data-dl-docx]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const g = S.generated.find(x=>x.id===btn.dataset.dlDocx);
-      if(g && g.docxBlob) triggerDL(g.docxBlob, (g.fileName||g.invNum)+'.docx');
-      else if(g && g.docxUrl) window.open(g.docxUrl, '_blank');
-    });
-  });
-  document.querySelectorAll('[data-preview-gen]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const g = S.generated.find(x=>x.id===btn.dataset.previewGen);
-      if(g) showPreviewModal(g._row);
-    });
-  });
-}
 
-function handleFile(file) {
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const wb   = XLSX.read(data, { type:'array', cellDates:true, raw:true });
-      const ws   = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(ws, { defval:'', raw:true });
-      if(!json.length) throw new Error('No rows found in file');
-      json.forEach(extractAddressFieldsFromRow);
-      S.rows = json; S.generated = []; S.uploadedFileName = file.name;
-      render();
-      toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
-
-      if(supaReady) {
-        try {
-          await dbSaveRows(S.rows, file.name);
-          toast(`☁️ ${json.length} rows saved to cloud`, 'good');
-        } catch(err) {
-          console.warn('Saving rows to cloud failed:', err);
-        }
+    function wireInvoices() {
+      const drop = document.getElementById('dropZone');
+      const inp = document.getElementById('fileInput');
+      if (drop) {
+        drop.addEventListener('click', () => inp.click());
+        ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+        ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+        drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+        inp.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
       }
-    } catch(err) { toast('Error reading file: '+err.message, 'bad'); }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-async function generateAll() {
-  S.generated = [];
-  const btn  = document.getElementById('genAllBtn');
-  const prog = document.getElementById('genProgress');
-  const bar  = document.getElementById('genBar');
-  const txt  = document.getElementById('genText');
-  if(btn) btn.disabled = true;
-  if(prog) prog.style.display = 'block';
-
-  for(let i=0; i<S.rows.length; i++) {
-    const row     = S.rows[i];
-    const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-    const invNum  = genInvNum(row);
-    const fileName = genFileName(row);
-    const amount  = cleanNum(row['Transaction Amount']);
-
-    const pdfBlob  = await buildPDF(row, profile, invNum);
-    const docxBlob = await buildDOCX(row, profile, invNum);
-
-    const g = {
-      id: uid(), invNum, fileName,
-      merchant    : row['_billName'] || 'Unknown',
-      amount, utr : row['Transaction UTR Number']||'',
-      settlementId: row['Seller Settlement Records ID']||'',
-      savedAt     : Date.now(),
-      pdfBlob, docxBlob, _row: row,
-      pdfUrl: null, docxUrl: null,
-    };
-
-    if(supaReady) {
-      try {
-        const urls = await uploadInvoiceFiles(fileName, pdfBlob, docxBlob);
-        g.pdfUrl  = urls.pdfUrl;
-        g.docxUrl = urls.docxUrl;
-        await dbSaveInvoice(g);
-      } catch(e) { console.warn('Supabase save configuration sync skipped:', e); }
+      document.getElementById('clearDataBtn')?.addEventListener('click', async () => {
+        S.rows = []; S.generated = []; S.uploadedFileName = null;
+        render();
+        if (supaReady) {
+          try { await dbClearRows(); toast('Cleared uploaded data from cloud.', ''); }
+          catch (e) { toast('Cloud clear failed: ' + e.message, 'bad'); }
+        }
+      });
+      document.getElementById('genAllBtn')?.addEventListener('click', generateAll);
+      document.getElementById('zipAllBtn')?.addEventListener('click', downloadZip);
+      document.getElementById('viewLibBtn')?.addEventListener('click', () => goto('library'));
+      document.querySelectorAll('[data-preview]').forEach(btn => btn.addEventListener('click', () => showPreviewModal(S.rows[+btn.dataset.preview])));
+      document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => showEditModal(+btn.dataset.edit)));
+      document.querySelectorAll('[data-dl-pdf]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const g = S.generated.find(x => x.id === btn.dataset.dlPdf);
+          if (g && g.pdfBlob) triggerDL(g.pdfBlob, (g.fileName || g.invNum) + '.pdf');
+          else if (g && g.pdfUrl) window.open(g.pdfUrl, '_blank');
+        });
+      });
+      document.querySelectorAll('[data-dl-docx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const g = S.generated.find(x => x.id === btn.dataset.dlDocx);
+          if (g && g.docxBlob) triggerDL(g.docxBlob, (g.fileName || g.invNum) + '.docx');
+          else if (g && g.docxUrl) window.open(g.docxUrl, '_blank');
+        });
+      });
+      document.querySelectorAll('[data-preview-gen]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const g = S.generated.find(x => x.id === btn.dataset.previewGen);
+          if (g) showPreviewModal(g._row);
+        });
+      });
     }
 
-    S.generated.push(g);
-    const pct = Math.round(((i+1)/S.rows.length)*100);
-    if(bar) bar.style.width = pct+'%';
-    if(txt) txt.textContent = `Saving ${i+1} of ${S.rows.length} to cloud…`;
-    if(i%3===0) await new Promise(r=>setTimeout(r,0));
-  }
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
+          if (!json.length) throw new Error('No rows found in file');
+          json.forEach(extractAddressFieldsFromRow);
+          S.rows = json; S.generated = []; S.uploadedFileName = file.name;
+          render();
+          toast(`✓ Loaded ${json.length} rows from ${file.name}`, 'good');
 
-  if(supaReady) {
-    try { S.savedInvoices = await dbLoadInvoices(); } catch(e){}
-  }
-  if(btn) btn.disabled = false;
-  toast(`✅ ${S.rows.length} invoices generated and saved to cloud!`, 'good');
-  render();
-}
+          if (supaReady) {
+            try {
+              await dbSaveRows(S.rows, file.name);
+              toast(`☁️ ${json.length} rows saved to cloud`, 'good');
+            } catch (err) {
+              console.warn('Saving rows to cloud failed:', err);
+            }
+          }
+        } catch (err) { toast('Error reading file: ' + err.message, 'bad'); }
+      };
+      reader.readAsArrayBuffer(file);
+    }
 
-async function downloadZip() {
-  const z = new JSZip();
-  for(const g of S.generated) {
-    const base = g.fileName || g.invNum;
-    if(g.pdfBlob)  z.file(base+'.pdf',  g.pdfBlob);
-    if(g.docxBlob) z.file(base+'.docx', g.docxBlob);
-  }
-  const blob = await z.generateAsync({type:'blob'});
-  triggerDL(blob, `settlement_invoices_${Date.now()}.zip`);
-}
+    async function generateAll() {
+      S.generated = [];
+      const btn = document.getElementById('genAllBtn');
+      const prog = document.getElementById('genProgress');
+      const bar = document.getElementById('genBar');
+      const txt = document.getElementById('genText');
+      if (btn) btn.disabled = true;
+      if (prog) prog.style.display = 'block';
 
-/* ═══════════════════════════════════════════════
-   INVOICE HTML BUILDER
-═══════════════════════════════════════════════ */
-function buildInvoiceHTML(row, profile, invNum) {
-  const co  = S.company || {};
-  const p   = profile   || {};
-  if(row['_invNum']) invNum = row['_invNum'];
-  
-  const merchantName  = row['_billName']    || p.name  || '';
-  const merchantAddr  = row['_billAddress'] || p.address || '';
-  const merchantCity  = row['_billCity']    || p.city    || '';
-  const merchantState = row['_billState']   || p.state   || '';
-  const merchantPin   = row['_billPin']     || p.pin     || '';
-  const merchantGST   = row['_billGST']     || p.gst     || '';
-  const merchantPAN   = row['_billPAN']     || p.pan     || '';
-  const fullBillAddr  = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+      for (let i = 0; i < S.rows.length; i++) {
+        const row = S.rows[i];
+        const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
+        const invNum = genInvNum(row);
+        const fileName = genFileName(row);
+        const amount = cleanNum(row['Transaction Amount']);
 
-  const shipName  = row['_shipName']    || merchantName;
-  const shipAddr  = row['_shipAddress'] || merchantAddr;
-  const shipCity  = row['_shipCity']    || merchantCity;
-  const shipState = row['_shipState']   || merchantState;
-  const shipPin   = row['_shipPin']     || merchantPin;
-  const fullShipAddr = [shipAddr, shipCity, shipState, shipPin].filter(Boolean).join(', ');
+        const pdfBlob = await buildPDF(row, profile, invNum);
+        const docxBlob = await buildDOCX(row, profile, invNum);
 
-  const gst           = getGSTInfo(row, profile);
-  const words       = numWords(gst.total);
-  
-  const txDate      = parseDate(row['Transaction Date']);
-  const invDate     = txDate; 
+        const g = {
+          id: uid(), invNum, fileName,
+          merchant: row['_billName'] || 'Unknown',
+          amount, utr: row['Transaction UTR Number'] || '',
+          settlementId: row['Seller Settlement Records ID'] || '',
+          savedAt: Date.now(),
+          pdfBlob, docxBlob, _row: row,
+          pdfUrl: null, docxUrl: null,
+        };
 
- // Strict Profile Matching Logic
-  const isProfile = !!p.name;
-  const coName = isProfile ? p.name : (co.name || '');
-  const coAddr = isProfile ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const coPan  = isProfile ? (p.pan || '') : (co.pan || '');
-  const coGst  = isProfile ? (p.gst || '') : (co.gst || '');
-  const coCin  = isProfile ? (p.cin || '') : (co.cin || '');
-  const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
+        if (supaReady) {
+          try {
+            const urls = await uploadInvoiceFiles(fileName, pdfBlob, docxBlob);
+            g.pdfUrl = urls.pdfUrl;
+            g.docxUrl = urls.docxUrl;
+            await dbSaveInvoice(g);
+          } catch (e) { console.warn('Supabase save configuration sync skipped:', e); }
+        }
 
-  const totalsRows = gst.isSame
-    ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
-       <tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
-       <tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
-    : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+        S.generated.push(g);
+        const pct = Math.round(((i + 1) / S.rows.length) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (txt) txt.textContent = `Saving ${i + 1} of ${S.rows.length} to cloud…`;
+        if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
+      }
+
+      if (supaReady) {
+        try { S.savedInvoices = await dbLoadInvoices(); } catch (e) { }
+      }
+      if (btn) btn.disabled = false;
+      toast(`✅ ${S.rows.length} invoices generated and saved to cloud!`, 'good');
+      render();
+    }
+
+    async function downloadZip() {
+      const z = new JSZip();
+      for (const g of S.generated) {
+        const base = g.fileName || g.invNum;
+        if (g.pdfBlob) z.file(base + '.pdf', g.pdfBlob);
+        if (g.docxBlob) z.file(base + '.docx', g.docxBlob);
+      }
+      const blob = await z.generateAsync({ type: 'blob' });
+      triggerDL(blob, `settlement_invoices_${Date.now()}.zip`);
+    }
+
+    /* ═══════════════════════════════════════════════
+       INVOICE HTML BUILDER
+    ═══════════════════════════════════════════════ */
+    function buildInvoiceHTML(row, profile, invNum) {
+      const co = S.company || {};
+      const p = profile || {};
+      if (row['_invNum']) invNum = row['_invNum'];
+
+      const merchantName = row['_billName'] || p.name || '';
+      const merchantAddr = row['_billAddress'] || p.address || '';
+      const merchantCity = row['_billCity'] || p.city || '';
+      const merchantState = row['_billState'] || p.state || '';
+      const merchantPin = row['_billPin'] || p.pin || '';
+      const merchantGST = row['_billGST'] || p.gst || '';
+      const merchantPAN = row['_billPAN'] || p.pan || '';
+      const fullBillAddr = [merchantAddr, merchantCity, merchantState, merchantPin].filter(Boolean).join(', ');
+
+      const shipName = row['_shipName'] || merchantName;
+      const shipAddr = row['_shipAddress'] || merchantAddr;
+      const shipCity = row['_shipCity'] || merchantCity;
+      const shipState = row['_shipState'] || merchantState;
+      const shipPin = row['_shipPin'] || merchantPin;
+      const fullShipAddr = [shipAddr, shipCity, shipState, shipPin].filter(Boolean).join(', ');
+
+      const gst = getGSTInfo(row, profile);
+      const words = numWords(gst.total);
+
+      const txDate = parseDate(row['Transaction Date']);
+      const invDate = txDate;
+
+      // Strict Profile Matching Logic
+      const isProfile = !!p.name;
+      const coName = isProfile ? p.name : (co.name || '');
+      const coAddr = isProfile ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+      const coPan = isProfile ? (p.pan || '') : (co.pan || '');
+      const coGst = isProfile ? (p.gst || '') : (co.gst || '');
+      const coCin = isProfile ? (p.cin || '') : (co.cin || '');
+      const logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
+
+      const totalsRows = gst.isSame
+        ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
+       <tr><td>CGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr>
+       <tr><td>SGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
+        : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr>
        <tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
 
-  return `<div class="inv-paper">
+      return `<div class="inv-paper">
     <div class="inv-top">
       <div class="inv-title-block"><h2>Tax Invoice</h2><p>(Original for Recipient)</p></div>
       <div class="inv-logo">
@@ -1093,7 +1819,7 @@ function buildInvoiceHTML(row, profile, invNum) {
         <div class="inv-addr-label">Billing Address</div>
         <div class="inv-addr-body">
           <b>${esc(merchantName)}</b><br>
-          ${fullBillAddr ? wrapAddressLines(fullBillAddr)+'<br>' : ''}
+          ${fullBillAddr ? wrapAddressLines(fullBillAddr) + '<br>' : ''}
           ${merchantGST ? `<b>GST: ${esc(merchantGST)}</b><br>` : ''}
           ${merchantPAN ? `<b>PAN: ${esc(merchantPAN)}</b><br>` : ''}
         </div>
@@ -1147,57 +1873,57 @@ function buildInvoiceHTML(row, profile, invNum) {
       <div class="inv-sign">
         <div class="sig-line"></div>
         ${coName ? `<div class="sig-name">For ${esc(coName)}</div>` : ''}
-        <div style="color:#888;">${esc(co.signatory||'Authorised Signatory')}</div>
-        <div>${esc(co.designation||'Director')}</div>
+        <div style="color:#888;">${esc(co.signatory || 'Authorised Signatory')}</div>
+        <div>${esc(co.designation || 'Director')}</div>
       </div>
     </div>
   </div>`;
-}
+    }
 
-/* ═══════════════════════════════════════════════
-   EDIT MODAL
-═══════════════════════════════════════════════ */
-function showEditModal(rowIdx) {
-  const row     = S.rows[rowIdx]; if(!row) return;
-  const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-  const co      = S.company || {};
-  const txDateVal = parseDate(row['Transaction Date']);
-  const edits = {
-    invNum      : genInvNum(row),
-    sellerName  : row['Seller Name']||'',
-    settlementId: String(row['Seller Settlement Records ID']||''),
-    utr         : String(row['Transaction UTR Number']||''),
-    txRef       : String(row['Transaction Reference Number']||''),
-    txDate      : txDateVal,
-    amount      : cleanNum(row['Transaction Amount']),
-    description : row['_description']||'',
-    gstRate     : cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18),
-    billName    : row['_billName']    || (profile&&profile.name)    || '',
-    textFields  : row['_billAddress'] || (profile&&profile.address) || '',
-    billAddress : row['_billAddress'] || (profile&&profile.address) || '',
-    billCity    : row['_billCity']    || (profile&&profile.city)    || '',
-    billState   : row['_billState']   || (profile&&profile.state)   || '',
-    billPin     : row['_billPin']     || (profile&&profile.pin)     || '',
-    billGST     : row['_billGST']     || (profile&&profile.gst)     || '',
-    billPAN     : row['_billPAN']     || (profile&&profile.pan)     || '',
-    shipName    : row['_shipName']    || row['_billName']           || '',
-    shipAddress : row['_shipAddress'] || row['_billAddress']        || '',
-    shipCity    : row['_shipCity']    || row['_billCity']           || '',
-    shipState   : row['_shipState']   || row['_billState']          || '',
-    shipPin     : row['_shipPin']     || row['_billPin']            || '',
-    logoB64     : row['_logoB64'] || null,
-    logoUrl     : row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc(),
-  };
+    /* ═══════════════════════════════════════════════
+       EDIT MODAL
+    ═══════════════════════════════════════════════ */
+    function showEditModal(rowIdx) {
+      const row = S.rows[rowIdx]; if (!row) return;
+      const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
+      const co = S.company || {};
+      const txDateVal = parseDate(row['Transaction Date']);
+      const edits = {
+        invNum: genInvNum(row),
+        sellerName: row['Seller Name'] || '',
+        settlementId: String(row['Seller Settlement Records ID'] || ''),
+        utr: String(row['Transaction UTR Number'] || ''),
+        txRef: String(row['Transaction Reference Number'] || ''),
+        txDate: txDateVal,
+        amount: cleanNum(row['Transaction Amount']),
+        description: row['_description'] || '',
+        gstRate: cleanNum(row['_gstRate'] ?? co.defaultGstRate ?? 18),
+        billName: row['_billName'] || (profile && profile.name) || '',
+        textFields: row['_billAddress'] || (profile && profile.address) || '',
+        billAddress: row['_billAddress'] || (profile && profile.address) || '',
+        billCity: row['_billCity'] || (profile && profile.city) || '',
+        billState: row['_billState'] || (profile && profile.state) || '',
+        billPin: row['_billPin'] || (profile && profile.pin) || '',
+        billGST: row['_billGST'] || (profile && profile.gst) || '',
+        billPAN: row['_billPAN'] || (profile && profile.pan) || '',
+        shipName: row['_shipName'] || row['_billName'] || '',
+        shipAddress: row['_shipAddress'] || row['_billAddress'] || '',
+        shipCity: row['_shipCity'] || row['_billCity'] || '',
+        shipState: row['_shipState'] || row['_billState'] || '',
+        shipPin: row['_shipPin'] || row['_billPin'] || '',
+        logoB64: row['_logoB64'] || null,
+        logoUrl: row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc(),
+      };
 
-  const logoPreviewHTML = (ed) => {
-    const src = ed.logoB64 || ed.logoUrl;
-    return src ? `<img src="${src}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">` : `<span class="logo-placeholder">No logo — click Upload</span>`;
-  };
+      const logoPreviewHTML = (ed) => {
+        const src = ed.logoB64 || ed.logoUrl;
+        return src ? `<img src="${src}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">` : `<span class="logo-placeholder">No logo — click Upload</span>`;
+      };
 
-  const bg = document.createElement('div');
-  bg.className = 'modal-bg';
-  bg.style.cssText = 'align-items:flex-start;padding:16px;overflow-y:auto;';
-  bg.innerHTML = `
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      bg.style.cssText = 'align-items:flex-start;padding:16px;overflow-y:auto;';
+      bg.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:1100px;max-width:100%;padding:0;display:flex;max-height:96vh;overflow:hidden;">
       <div style="width:360px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:20px;">
         <div style="font-weight:700;font-size:15px;margin-bottom:4px;">✏️ Edit Invoice</div>
@@ -1218,11 +1944,11 @@ function showEditModal(rowIdx) {
         <div class="field">
           <label>GST Rate %</label>
           <select id="ef_gstRate">
-            <option value="0" ${edits.gstRate==0?'selected':''}>0% — Exempt</option>
-            <option value="5" ${edits.gstRate==5?'selected':''}>5%</option>
-            <option value="12" ${edits.gstRate==12?'selected':''}>12%</option>
-            <option value="18" ${edits.gstRate==18?'selected':''}>18%</option>
-            <option value="28" ${edits.gstRate==28?'selected':''}>28%</option>
+            <option value="0" ${edits.gstRate == 0 ? 'selected' : ''}>0% — Exempt</option>
+            <option value="5" ${edits.gstRate == 5 ? 'selected' : ''}>5%</option>
+            <option value="12" ${edits.gstRate == 12 ? 'selected' : ''}>12%</option>
+            <option value="18" ${edits.gstRate == 18 ? 'selected' : ''}>18%</option>
+            <option value="28" ${edits.gstRate == 28 ? 'selected' : ''}>28%</option>
           </select>
         </div>
         <div id="ef_gstChip" style="margin-bottom:12px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:11px;line-height:1.7;"></div>
@@ -1255,38 +1981,38 @@ function showEditModal(rowIdx) {
         <div id="editPreviewArea"></div>
       </div>
     </div>`;
-  document.body.appendChild(bg);
+      document.body.appendChild(bg);
 
-  const previewArea = bg.querySelector('#editPreviewArea');
-  const gstChip      = bg.querySelector('#ef_gstChip');
+      const previewArea = bg.querySelector('#editPreviewArea');
+      const gstChip = bg.querySelector('#ef_gstChip');
 
-  function updateGSTChip() {
-    const g = calcGST(edits.amount, edits.gstRate, (S.company||{}).state, edits.billState);
-    gstChip.innerHTML = g.isSame
-      ? `🏠 <b>Same State</b> → CGST + SGST<br>Base: <b>${fmtINR(g.base)}</b> | CGST: <b>${fmtINR(g.cgst)}</b> | SGST: <b>${fmtINR(g.sgst)}</b><br>Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`
-      : `🚀 <b>Inter-State</b> → IGST<br>Base: <b>${fmtINR(g.base)}</b> | IGST: <b>${fmtINR(g.igst)}</b><br>Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`;
-  }
+      function updateGSTChip() {
+        const g = calcGST(edits.amount, edits.gstRate, (S.company || {}).state, edits.billState);
+        gstChip.innerHTML = g.isSame
+          ? `🏠 <b>Same State</b> → CGST + SGST<br>Base: <b>${fmtINR(g.base)}</b> | CGST: <b>${fmtINR(g.cgst)}</b> | SGST: <b>${fmtINR(g.sgst)}</b><br>Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`
+          : `🚀 <b>Inter-State</b> → IGST<br>Base: <b>${fmtINR(g.base)}</b> | IGST: <b>${fmtINR(g.igst)}</b><br>Total: <b style="color:var(--green)">${fmtINR(g.total)}</b>`;
+      }
 
-  function buildPreviewFromEdits() {
-    const co  = S.company || {};
-    const gst = calcGST(edits.amount, edits.gstRate, co.state||'', edits.billState||'');
-    const fullBillAddr = [edits.billAddress,edits.billCity,edits.billState,edits.billPin].filter(Boolean).join(', ');
-    const fullShipAddr = [edits.shipAddress,edits.shipCity,edits.shipState,edits.shipPin].filter(Boolean).join(', ');
-    const logoSrc = edits.logoB64 || edits.logoUrl || getProfileLogo(profile) || getLogoSrc();
-    const desc = edits.description || 'Settlement Pay';
-    const totalsRows = gst.isSame
-      ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
-      : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
-    const p = profile || {};
-    const coName = p.name ? p.name : (co.name || '');
-    const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-    const coPan  = p.pan ? p.pan : (co.pan || '');
-    const coGst  = p.gst ? p.gst : (co.gst || '');
-    const coCin  = p.cin ? p.cin : (co.cin || '');
-    return `<div class="inv-paper">
+      function buildPreviewFromEdits() {
+        const co = S.company || {};
+        const gst = calcGST(edits.amount, edits.gstRate, co.state || '', edits.billState || '');
+        const fullBillAddr = [edits.billAddress, edits.billCity, edits.billState, edits.billPin].filter(Boolean).join(', ');
+        const fullShipAddr = [edits.shipAddress, edits.shipCity, edits.shipState, edits.shipPin].filter(Boolean).join(', ');
+        const logoSrc = edits.logoB64 || edits.logoUrl || getProfileLogo(profile) || getLogoSrc();
+        const desc = edits.description || 'Settlement Pay';
+        const totalsRows = gst.isSame
+          ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate / 2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
+          : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
+        const p = profile || {};
+        const coName = p.name ? p.name : (co.name || '');
+        const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+        const coPan = p.pan ? p.pan : (co.pan || '');
+        const coGst = p.gst ? p.gst : (co.gst || '');
+        const coCin = p.cin ? p.cin : (co.cin || '');
+        return `<div class="inv-paper">
       <div class="inv-top">
         <div class="inv-title-block"><h2>Tax Invoice</h2><p>(Original for Recipient)</p></div>
-        <div class="inv-logo">${logoSrc?`<img src="${logoSrc}" style="max-height:52px;max-width:180px;object-fit:contain;">`:(coName?`<span style="font-size:20px;font-weight:900;">${esc(coName)}</span>`:'')}</div>
+        <div class="inv-logo">${logoSrc ? `<img src="${logoSrc}" style="max-height:52px;max-width:180px;object-fit:contain;">` : (coName ? `<span style="font-size:20px;font-weight:900;">${esc(coName)}</span>` : '')}</div>
       </div>
       <hr class="inv-rule">
       <div class="inv-meta">
@@ -1295,8 +2021,41 @@ function showEditModal(rowIdx) {
         <div><b>Transaction Date:</b> ${esc(edits.txDate)}</div>
       </div>
       <div class="inv-addr-row">
-        <div class="inv-addr-col"><div class="inv-addr-label">Billing Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?wrapAddressLines(fullBillAddr)+'<br>':''}${edits.billGST?'<b>GST: '+esc(edits.billGST)+'</b><br>':''}${edits.billPAN?'<b>PAN: '+esc(edits.billPAN)+'</b>':''}</div></div>
-        <div class="inv-addr-col"><div class="inv-addr-label">Shipping Address</div><div class="inv-addr-body"><b>${esc(edits.shipName)}</b><br>${fullShipAddr?wrapAddressLines(fullShipAddr):'—'}</div></div>
+        <!-- Billing Address -->
+<div class="inv-addr-row">
+  <div class="inv-addr-col">
+    <div class="inv-addr-label">Billing Address</div>
+
+    <div class="inv-addr-body">
+      <b>${esc(merchantName)}</b><br>
+
+      ${fullBillAddr ? wrapAddressLines(fullBillAddr) + '<br>' : ''}
+
+      ${merchantGST ? `<b>GST:</b> ${esc(merchantGST)}<br>` : ''}
+
+      ${merchantPAN ? `<b>PAN:</b> ${esc(merchantPAN)}` : ''}
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Details -->
+<div class="inv-transaction-info">
+    <div><b>Transaction Date:</b> ${esc(txDate)}</div>
+    <div><b>Settlement ID:</b> ${esc(row['Seller Settlement Records ID'] || '')}</div>
+    <div><b>UTR Number:</b> ${esc(row['Transaction UTR Number'] || '')}</div>
+</div>
+
+<!-- Shipping Address -->
+<div class="inv-shipping-box">
+    <div class="inv-addr-label">Shipping Address</div>
+
+    <div class="inv-addr-body">
+        <b>${esc(shipName)}</b><br>
+        ${fullShipAddr ? wrapAddressLines(fullShipAddr) : '—'}
+    </div>
+</div>
+
+<table class="inv-table">
       </div>
       <table class="inv-table"><thead><tr><th>SI.No</th><th>Description</th><th>Unit Price</th><th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th></tr></thead>
       <tbody><tr><td>1</td><td><b>${esc(desc)}</b></td>
@@ -1306,319 +2065,329 @@ function showEditModal(rowIdx) {
       <tfoot><tr><td colspan="8" style="font-weight:700;text-align:right;background:#f2f2f2;">TOTAL:</td><td style="font-weight:800;text-align:right;background:#f2f2f2;">${fmtINR(gst.total)}</td></tr></tfoot></table>
       <div style="display:flex;justify-content:flex-end;"><table class="inv-totals">${totalsRows}<tr class="total-final"><td><b>Total</b></td><td style="text-align:right;"><b>${fmtINR(gst.total)}</b></td></tr></table></div>
       <div class="inv-words"><b>Amount in Words:</b> ${esc(numWords(gst.total))}</div>
-      ${coName?`<div class="inv-from">From ${esc(coName)}</div>`:''}
+      ${coName ? `<div class="inv-from">From ${esc(coName)}</div>` : ''}
       <hr class="inv-rule-light">
       <div class="inv-footer">
-        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName?`<div class="co-name">${esc(coName)}</div>`:''}${coAddr?`<div>${wrapAddressLines(coAddr)}</div>`:''}${coPan?`<div><b>PAN No: ${esc(coPan)}</b></div>`:''}${coGst?`<div><b>GST Registration No: ${esc(coGst)}</b></div>`:''}${coCin?`<div><b>CIN No:</b> ${esc(coCin)}</div>`:''}</div>
-        <div class="inv-sign"><div class="sig-line"></div>${coName?`<div class="sig-name">For ${esc(coName)}</div>`:''}<div style="color:#888;">${esc(co.signatory||'Authorised Signatory')}</div><div>${esc(co.designation||'Director')}</div></div>
+        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName ? `<div class="co-name">${esc(coName)}</div>` : ''}${coAddr ? `<div>${wrapAddressLines(coAddr)}</div>` : ''}${coPan ? `<div><b>PAN No: ${esc(coPan)}</b></div>` : ''}${coGst ? `<div><b>GST Registration No: ${esc(coGst)}</b></div>` : ''}${coCin ? `<div><b>CIN No:</b> ${esc(coCin)}</div>` : ''}</div>
+        <div class="inv-sign"><div class="sig-line"></div>${coName ? `<div class="sig-name">For ${esc(coName)}</div>` : ''}<div style="color:#888;">${esc(co.signatory || 'Authorised Signatory')}</div><div>${esc(co.designation || 'Director')}</div></div>
       </div>
     </div>`;
-  }
+      }
 
-  const refreshPreview = () => { updateGSTChip(); previewArea.innerHTML = buildPreviewFromEdits(); };
-  refreshPreview();
+      const refreshPreview = () => { updateGSTChip(); previewArea.innerHTML = buildPreviewFromEdits(); };
+      refreshPreview();
 
-  const textFields = ['invNum','txDate','amount','description','utr','txRef','billName','billAddress','billCity','billState','billPin','billGST','billPAN','shipName','shipAddress','shipCity','shipState','shipPin'];
-  textFields.forEach(f => {
-    const el = bg.querySelector('#ef_'+f);
-    if(el) el.addEventListener('input', () => { edits[f] = f==='amount'?cleanNum(el.value):el.value; refreshPreview(); });
-  });
-  bg.querySelector('#ef_gstRate').addEventListener('change', e => { edits.gstRate = cleanNum(e.target.value); refreshPreview(); });
+      const textFields = ['invNum', 'txDate', 'amount', 'description', 'utr', 'txRef', 'billName', 'billAddress', 'billCity', 'billState', 'billPin', 'billGST', 'billPAN', 'shipName', 'shipAddress', 'shipCity', 'shipState', 'shipPin'];
+      textFields.forEach(f => {
+        const el = bg.querySelector('#ef_' + f);
+        if (el) el.addEventListener('input', () => { edits[f] = f === 'amount' ? cleanNum(el.value) : el.value; refreshPreview(); });
+      });
+      bg.querySelector('#ef_gstRate').addEventListener('change', e => { edits.gstRate = cleanNum(e.target.value); refreshPreview(); });
 
-  const logoInput      = bg.querySelector('#ef_logoInput');
-  const logoPreviewEl = bg.querySelector('#ef_logoPreview');
-  logoPreviewEl.addEventListener('click', () => logoInput.click());
-  logoInput.addEventListener('change', e => {
-    const file = e.target.files[0]; if(!file) return;
-    if(file.size > 500000) { toast('Logo too large — max 500 KB.','bad'); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      edits.logoB64 = ev.target.result; edits.logoUrl = null;
-      logoPreviewEl.innerHTML = `<img src="${edits.logoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
-      refreshPreview(); toast('Logo uploaded.','good');
-    };
-    reader.readAsDataURL(file);
-  });
-  bg.querySelector('#ef_removeLogoBtn').addEventListener('click', () => {
-    edits.logoB64 = null; edits.logoUrl = null;
-    logoPreviewEl.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
-    refreshPreview();
-  });
+      const logoInput = bg.querySelector('#ef_logoInput');
+      const logoPreviewEl = bg.querySelector('#ef_logoPreview');
+      logoPreviewEl.addEventListener('click', () => logoInput.click());
+      logoInput.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        if (file.size > 500000) { toast('Logo too large — max 500 KB.', 'bad'); return; }
+        const reader = new FileReader();
+        reader.onload = ev => {
+          edits.logoB64 = ev.target.result; edits.logoUrl = null;
+          logoPreviewEl.innerHTML = `<img src="${edits.logoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
+          refreshPreview(); toast('Logo uploaded.', 'good');
+        };
+        reader.readAsDataURL(file);
+      });
+      bg.querySelector('#ef_removeLogoBtn').addEventListener('click', () => {
+        edits.logoB64 = null; edits.logoUrl = null;
+        logoPreviewEl.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
+        refreshPreview();
+      });
 
-  bg.querySelector('#ef_applyBtn').addEventListener('click', async () => {
-    textFields.forEach(f => { const inp = bg.querySelector('#ef_'+f); if(inp) edits[f] = f==='amount'?cleanNum(inp.value):inp.value; });
-    edits.gstRate = cleanNum(bg.querySelector('#ef_gstRate').value);
-    const r = S.rows[rowIdx];
-    r['Transaction UTR Number']       = edits.utr;
-    r['Transaction Reference Number'] = edits.txRef;
-    r['Transaction Amount']           = edits.amount;
-    r['Transaction Date']             = edits.txDate;
-    r['_description']  = edits.description;
-    r['_invNum']       = edits.invNum;
-    r['_gstRate']      = edits.gstRate;
-    r['_billName']     = edits.billName;
-    r['_billAddress']  = edits.billAddress;
-    r['_billCity']     = edits.billCity;
-    r['_billState']    = edits.billState;
-    r['_billPin']      = edits.billPin;
-    r['_billGST']      = edits.billGST;
-    r['_billPAN']      = edits.billPAN;
-    r['_shipName']     = edits.shipName;
-    r['_shipAddress']  = edits.shipAddress;
-    r['_shipCity']     = edits.shipCity;
-    r['_shipState']    = edits.shipState;
-    r['_shipPin']      = edits.shipPin;
-    r['_logoB64']      = edits.logoB64;
-    r['_logoUrl']      = edits.logoUrl;
-    toast('Row updated. Click Generate to rebuild invoices.','good');
-    bg.remove(); render();
-    if(supaReady) {
-      try { await dbSaveRows(S.rows, S.uploadedFileName); }
-      catch(e) { console.warn('Cloud sync of edited row failed:', e); }
+      bg.querySelector('#ef_applyBtn').addEventListener('click', async () => {
+        textFields.forEach(f => { const inp = bg.querySelector('#ef_' + f); if (inp) edits[f] = f === 'amount' ? cleanNum(inp.value) : inp.value; });
+        edits.gstRate = cleanNum(bg.querySelector('#ef_gstRate').value);
+        const r = S.rows[rowIdx];
+        r['Transaction UTR Number'] = edits.utr;
+        r['Transaction Reference Number'] = edits.txRef;
+        r['Transaction Amount'] = edits.amount;
+        r['Transaction Date'] = edits.txDate;
+        r['_description'] = edits.description;
+        r['_invNum'] = edits.invNum;
+        r['_gstRate'] = edits.gstRate;
+        r['_billName'] = edits.billName;
+        r['_billAddress'] = edits.billAddress;
+        r['_billCity'] = edits.billCity;
+        r['_billState'] = edits.billState;
+        r['_billPin'] = edits.billPin;
+        r['_billGST'] = edits.billGST;
+        r['_billPAN'] = edits.billPAN;
+        r['_shipName'] = edits.shipName;
+        r['_shipAddress'] = edits.shipAddress;
+        r['_shipCity'] = edits.shipCity;
+        r['_shipState'] = edits.shipState;
+        r['_shipPin'] = edits.shipPin;
+        r['_logoB64'] = edits.logoB64;
+        r['_logoUrl'] = edits.logoUrl;
+        toast('Row updated. Click Generate to rebuild invoices.', 'good');
+        bg.remove(); render();
+        if (supaReady) {
+          try { await dbSaveRows(S.rows, S.uploadedFileName); }
+          catch (e) { console.warn('Cloud sync of edited row failed:', e); }
+        }
+      });
+      bg.querySelector('#ef_closeBtn').addEventListener('click', () => bg.remove());
+      bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
     }
-  });
-  bg.querySelector('#ef_closeBtn').addEventListener('click', () => bg.remove());
-  bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
-}
 
-/* ═══════════════════════════════════════════════
-   PREVIEW MODAL
-═══════════════════════════════════════════════ */
-function showPreviewModal(row) {
-  if(!row) return;
-  const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
-  const invNum  = genInvNum(row);
-  const bg = document.createElement('div');
-  bg.className = 'modal-bg';
-  bg.style.cssText = 'align-items:flex-start;padding:20px;overflow-y:auto;';
-  bg.innerHTML = `
+    /* ═══════════════════════════════════════════════
+       PREVIEW MODAL
+    ═══════════════════════════════════════════════ */
+    function showPreviewModal(row) {
+      if (!row) return;
+      const profile = S.profiles.find(p => matchProfile(p, row['Seller Name']));
+      const invNum = genInvNum(row);
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      bg.style.cssText = 'align-items:flex-start;padding:20px;overflow-y:auto;';
+      bg.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:800px;max-width:100%;padding:20px;">
       <div class="row-between" style="margin-bottom:16px;">
         <div style="font-weight:700;font-size:15px;">Invoice Preview</div>
         <div class="row" style="gap:8px;">
-          <span class="badge ${profile?'badge-green':'badge-amber'}">${profile?'✓ Profile matched':'No merchant profile'}</span>
+          <span class="badge ${profile ? 'badge-green' : 'badge-amber'}">${profile ? '✓ Profile matched' : 'No merchant profile'}</span>
           <button class="btn btn-ghost btn-sm" id="closePreview">✕ Close</button>
         </div>
       </div>
       <div style="overflow-x:auto;">${buildInvoiceHTML(row, profile, invNum)}</div>
     </div>`;
-  document.body.appendChild(bg);
-  document.getElementById('closePreview').onclick = () => bg.remove();
-  bg.addEventListener('click', e => { if(e.target===bg) bg.remove(); });
-}
+      document.body.appendChild(bg);
+      document.getElementById('closePreview').onclick = () => bg.remove();
+      bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
+    }
 
-/* ═══════════════════════════════════════════════
-   BUILD PDF
-═══════════════════════════════════════════════ */
-async function buildPDF(row, profile, invNum) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4' });
-  const L=14, R=196, W=182;
-  let y = 16;
-  const co  = S.company || {};
-  const p   = profile   || {};
-  const gst = getGSTInfo(row, profile);
-  
-  const merchantName = row['_billName'] || p.name || '';
-  const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const shipName     = row['_shipName']    || merchantName;
-  const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const coName = p.name ? p.name : (co.name || '');
-  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const coPan  = p.pan ? p.pan : (co.pan || '');
-  const coGst  = p.gst ? p.gst : (co.gst || '');
-  const coCin  = p.cin ? p.cin : (co.cin || '');
-  const words   = numWords(gst.total);
-  
-  const txDate  = parseDate(row['Transaction Date']);
-  const invDate = txDate; 
-  
-  const lineDescription = row['_description'] ? row['_description'] : 'Settlement Pay';
-  const customDesc = lineDescription;
+    /* ═══════════════════════════════════════════════
+       BUILD PDF
+    ═══════════════════════════════════════════════ */
+    async function buildPDF(row, profile, invNum) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const L = 14, R = 196, W = 182;
+      let y = 16;
+      const co = S.company || {};
+      const p = profile || {};
+      const gst = getGSTInfo(row, profile);
 
-  // jsPDF's built-in Helvetica font has no glyph for ₹ — it renders as garbled
-  // characters. Use an ASCII-safe "Rs." prefix for all PDF currency text instead.
-  const fmtINRPdf = n => 'Rs. ' + cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const merchantName = row['_billName'] || p.name || '';
+      const fullBillAddr = [row['_billAddress'] || p.address, row['_billCity'] || p.city, row['_billState'] || p.state, row['_billPin'] || p.pin].filter(Boolean).join(', ');
+      const shipName = row['_shipName'] || merchantName;
+      const fullShipAddr = [row['_shipAddress'] || row['_billAddress'] || p.address, row['_shipCity'] || row['_billCity'] || p.city, row['_shipState'] || row['_billState'] || p.state, row['_shipPin'] || row['_billPin'] || p.pin].filter(Boolean).join(', ');
+      const coName = p.name ? p.name : (co.name || '');
+      const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+      const coPan = p.pan ? p.pan : (co.pan || '');
+      const coGst = p.gst ? p.gst : (co.gst || '');
+      const coCin = p.cin ? p.cin : (co.cin || '');
+      const words = numWords(gst.total);
 
-  let logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
-  if(logoSrc && !logoSrc.startsWith('data:')) {
-    const dataUrl = await urlToDataURL(logoSrc);
-    if(dataUrl) logoSrc = dataUrl;
-  }
+      const txDate = parseDate(row['Transaction Date']);
+      const invDate = txDate;
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text('Tax Invoice', L, y);
-  if(logoSrc && logoSrc.startsWith('data:')) {
-    try {
-      const mime    = logoSrc.split(';')[0].split(':')[1] || 'image/png';
-      const imgType = mime.includes('jpeg') ? 'JPEG' : 'PNG';
-      doc.addImage(logoSrc, imgType, R-45, y-8, 45, 16, undefined, 'FAST');
-    } catch(e) { doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text(coName, R, y, {align:'right'}); }
-  } else if(coName) {
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text(coName, R, y, {align:'right'});
-  }
-  y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  doc.text('(Original for Recipient)', L, y);
-  y+=3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L,y,R,y); y+=4;
-  
-  [`Invoice Number: ${invNum}`,`Invoice Date: ${invDate}`,`Transaction Date: ${txDate}`]
-    .forEach(l => { doc.text(l, R, y, {align:'right'}); y+=4.5; });
-  y+=2;
-  let ly=y, ry=y;
-  doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  doc.text('BILLING ADDRESS', L, ly); doc.text('SHIPPING ADDRESS', 110, ry);
-  ly+=5; ry+=5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(merchantName||'—', L, ly); doc.text(shipName||'—', 110, ry);
-  ly+=4.5; ry+=4.5;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  if(fullBillAddr) {
-    const ls = doc.splitTextToSize(fullBillAddr,90);
-    doc.text(ls,L,ly); ly+=ls.length*4;
-  }
-  if(fullShipAddr) {
-    const rs = doc.splitTextToSize(fullShipAddr,90);
-    doc.text(rs,110,ry); ry+=rs.length*4;
-  }
-  const billGST = row['_billGST'] || p.gst || '';
-  const billPAN = row['_billPAN'] || p.pan || '';
-  if(billGST) { doc.setFont('helvetica','bold'); doc.text(`GST: ${billGST}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
-  if(billPAN) { doc.setFont('helvetica','bold'); doc.text(`PAN: ${billPAN}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
-  y = Math.max(ly,ry)+4;
- 
-const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const lineDescription = row['_description'] ? row['_description'] : 'Settlement Pay';
+      const customDesc = lineDescription;
 
-  doc.autoTable({
-    startY: y,
-    head:[['Sl. No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
-    // Yahan saare amount columns mein formatNumOnly laga diya hai
-    body:[['1',customDesc,formatNumOnly(gst.base),'1',formatNumOnly(gst.base),`${gst.rate}%`,gst.taxType,formatNumOnly(gst.taxAmt),formatNumOnly(gst.total)]],
-    foot:[['','','','','','','','TOTAL:',formatNumOnly(gst.total)]],
-    margin:{left:L, right:14},
-    styles:{fontSize:8, overflow:'linebreak', cellPadding:3, textColor:30},
-    headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
-    footStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:12},1:{cellWidth:40},2:{cellWidth:24,halign:'right'},3:{cellWidth:12,halign:'center'},4:{cellWidth:24,halign:'right'},5:{cellWidth:14,halign:'center'},6:{cellWidth:16,halign:'center'},7:{cellWidth:18,halign:'right'},8:{cellWidth:22,halign:'right'}}
-  });
+      // jsPDF's built-in Helvetica font has no glyph for ₹ — it renders as garbled
+      // characters. Use an ASCII-safe "Rs." prefix for all PDF currency text instead.
+      const fmtINRPdf = n => 'Rs. ' + cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  y = doc.lastAutoTable.finalY + 5;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  if(gst.isSame) {
-    doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, {align:'right'}); y+=4.5;
-    doc.text(`CGST @ ${gst.rate/2}%: ${fmtINRPdf(gst.cgst)}`, R, y, {align:'right'}); y+=4.5;
-    doc.text(`SGST @ ${gst.rate/2}%: ${fmtINRPdf(gst.sgst)}`, R, y, {align:'right'}); y+=4.5;
-  } else {
-    doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, {align:'right'}); y+=4.5;
-    doc.text(`IGST @ ${gst.rate}%: ${fmtINRPdf(gst.igst)}`, R, y, {align:'right'}); y+=4.5;
-  }
-  doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-  doc.text(`Total: ${fmtINRPdf(gst.total)}`, R, y, {align:'right'}); y+=6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W);
-  doc.setFillColor(249,249,249); doc.rect(L,y-3,W,wl.length*4.5+3,'F');
-  doc.text(wl, L+2, y); y += wl.length*4.5+5;
-  doc.setFont('helvetica','bold');
-  doc.text(`From ${coName}`, L, y); y+=8;
-  doc.setDrawColor(200); doc.line(L,y,R,y); y+=5;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('SOLD BY', L, y); y+=5;
-  doc.text(coName, L, y); y+=4.5;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
-  if(coAddr){ const ls=doc.splitTextToSize(coAddr,90); doc.text(ls,L,y); y+=ls.length*4; }
-  if(coPan) { doc.setFont('helvetica','bold'); doc.text(`PAN No: ${coPan}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
-  if(coGst) { doc.setFont('helvetica','bold'); doc.text(`GST Registration No: ${coGst}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
-  if(coCin) { doc.text(`CIN No: ${coCin}`, L, y); y+=4; }
-  const ph = doc.internal.pageSize.height;
-  doc.setFont('helvetica','bold'); doc.internal.pageSize.height;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(`For ${coName}`, R, ph-20, {align:'right'});
-  doc.line(R-40, ph-16, R, ph-16);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  doc.text(co.signatory||'Authorised Signatory', R, ph-12, {align:'right'});
-  doc.text(co.designation||'Director', R, ph-7, {align:'right'});
-  return doc.output('blob');
-}
+      let logoSrc = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
+      if (logoSrc && !logoSrc.startsWith('data:')) {
+        const dataUrl = await urlToDataURL(logoSrc);
+        if (dataUrl) logoSrc = dataUrl;
+      }
 
-/* ═══════════════════════════════════════════════
-   BUILD DOCX
-═══════════════════════════════════════════════ */
-function wP(t, opts={}) {
-  const bold  = opts.bold  ? '<w:b/>' : '';
-  const sz    = opts.size  ? `<w:sz w:val="${opts.size*2}"/>` : '';
-  const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : '';
-  const ppr   = align ? `<w:pPr>${align}</w:pPr>` : '';
-  const rpr   = (bold||sz) ? `<w:rPr>${bold}${sz}</w:rPr>` : '';
-  const eX = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return String(t??'').split('\n').map(line => `<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`).join('');
-}
-function wTR(cells, opts={}) {
-  return `<w:tr>${cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c,opts)}</w:tc>`).join('')}</w:tr>`;
-}
-function wTable(rows) {
-  const b = `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
-  return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${b}</w:tblPr>${rows}</w:tbl>`;
-}
-async function buildDOCX(row, profile, invNum) {
-  const co  = S.company || {}; const p = profile || {};
-  const gst = getGSTInfo(row, profile);
-  const merchantName = row['_billName'] || p.name || '';
-  const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const shipName     = row['_shipName']    || merchantName;
-  const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const coName = p.name ? p.name : (co.name || ''); 
-  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
-  const coPan  = p.pan ? p.pan : (co.pan || '');
-  const coGst  = p.gst ? p.gst : (co.gst || '');
-  const coCin  = p.cin ? p.cin : (co.cin || '');
-  const words = numWords(gst.total); 
-  
-  const txDate = parseDate(row['Transaction Date']);
-  const invDate = txDate;
-  
-  const lineDescription = row['_description'] ? row['_description'] : 'Settlement Pay';
-  const customDesc = lineDescription;
-  
-  const billGST = row['_billGST'] || p.gst || ''; const billPAN = row['_billPAN'] || p.pan || '';
-  let body = '';
-  body += wP('Tax Invoice',{bold:true,size:14}); body += wP('(Original for Recipient)',{size:9}); body += wP('');
-  body += wP(coName,{bold:true,size:13,align:'right'}); body += wP('');
-  body += wTable(wTR([`Invoice Number: ${invNum}`,`Invoice Date: ${invDate}`],{size:9})+wTR([`Transaction Date: ${txDate}`],{size:9}));
-  body += wP('');
-  body += wTable(wTR(['BILLING ADDRESS','SHIPPING ADDRESS'],{bold:true,size:8})+wTR([[merchantName,fullBillAddr,billGST?`GST: ${billGST}`:'',billPAN?`PAN: ${billPAN}`:''].filter(Boolean).join('\n'),[shipName,fullShipAddr].filter(Boolean).join('\n')],{size:9}));
-  body += wP('');
-  body += wTable(wTR(['SI.No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total'],{bold:true,size:8})+wTR(['1',customDesc,fmtINR(gst.base),'1',fmtINR(gst.base),`${gst.rate}%`,gst.taxType,fmtINR(gst.taxAmt),fmtINR(gst.total)],{size:8})+wTR(['','','','','','','','TOTAL:',fmtINR(gst.total)],{bold:true,size:8}));
-  body += wP(''); body += wP(`Base Amount: ${fmtINR(gst.base)}`,{size:9,align:'right'});
-  if(gst.isSame) { body += wP(`CGST @ ${gst.rate/2}%: ${fmtINR(gst.cgst)}`,{size:9,align:'right'}); body += wP(`SGST @ ${gst.rate/2}%: ${fmtINR(gst.sgst)}`,{size:9,align:'right'}); }
-  else { body += wP(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`,{size:9,align:'right'}); }
-  body += wP(`Total: ${fmtINR(gst.total)}`,{bold:true,size:11,align:'right'});
-  body += wP(''); body += wP(`Amount in Words: ${words}`,{size:9}); body += wP(`From ${coName}`,{bold:true,size:10});
-  body += wP(''); body += wP('SOLD BY',{bold:true,size:9}); body += wP(coName,{bold:true,size:10});
-  if(coAddr) body += wP(coAddr,{size:9}); if(coPan) body += wP(`PAN No: ${coPan}`,{bold:true,size:9});
-  if(coGst) body += wP(`GST Registration No: ${coGst}`,{bold:true,size:9}); if(coCin) body += wP(`CIN No: ${coCin}`,{size:9});
-  body += wP(''); body += wP(`For ${coName}`,{bold:true,size:10,align:'right'});
-  body += wP(co.signatory||'Authorised Signatory',{size:9,align:'right'}); body += wP(co.designation||'Director',{size:9,align:'right'});
-  const z = new JSZip();
-  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
-  z.folder('_rels').file('.rels',`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
-  z.folder('word').file('document.xml',`<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr></w:body></w:document>`);
-  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-}
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+      doc.text('Tax Invoice', L, y);
+      if (logoSrc && logoSrc.startsWith('data:')) {
+        try {
+          const mime = logoSrc.split(';')[0].split(':')[1] || 'image/png';
+          const imgType = mime.includes('jpeg') ? 'JPEG' : 'PNG';
+          doc.addImage(logoSrc, imgType, R - 45, y - 8, 45, 16, undefined, 'FAST');
+        } catch (e) { doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(coName, R, y, { align: 'right' }); }
+      } else if (coName) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text(coName, R, y, { align: 'right' });
+      }
+      y += 5; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      doc.text('(Original for Recipient)', L, y);
+      y += 3; doc.setDrawColor(40); doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 4;
 
-/* ═══════════════════════════════════════════════
-   PAGE: MERCHANT PROFILES
-═══════════════════════════════════════════════ */
-function matchProfile(profile, sellerName) {
-  if(!profile || !sellerName) return false;
-  const a = String(profile.name || '').toLowerCase().trim();
-  const b = String(sellerName || '').toLowerCase().trim();
-  
-  // Empty string check takki galat profile match na ho
-  if(!a || !b) return false; 
-  
-  return a === b || a.includes(b) || b.includes(a);
-}
+      [`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`, `Transaction Date: ${txDate}`]
+        .forEach(l => { doc.text(l, R, y, { align: 'right' }); y += 4.5; });
+      y += 2;
+      let ly = y, ry = y;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text('BILLING ADDRESS', L, ly); doc.text('SHIPPING ADDRESS', 110, ry);
+      ly += 5; ry += 5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text(merchantName || '—', L, ly); doc.text(shipName || '—', 110, ry);
+      ly += 4.5; ry += 4.5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      if (fullBillAddr) {
+        const ls = doc.splitTextToSize(fullBillAddr, 90);
+        doc.text(ls, L, ly); ly += ls.length * 4;
+      }
+      if (fullShipAddr) {
+        const rs = doc.splitTextToSize(fullShipAddr, 90);
+        doc.text(rs, 110, ry); ry += rs.length * 4;
+      }
+      const billGST = row['_billGST'] || p.gst || '';
+      const billPAN = row['_billPAN'] || p.pan || '';
+      if (billGST) { doc.setFont('helvetica', 'bold'); doc.text(`GST: ${billGST}`, L, ly); doc.setFont('helvetica', 'normal'); ly += 4; }
+      if (billPAN) { doc.setFont('helvetica', 'bold'); doc.text(`PAN: ${billPAN}`, L, ly); doc.setFont('helvetica', 'normal'); ly += 4; }
+      y = Math.max(ly, ry) + 4;
 
-function viewProfiles() {
-  return `
+      const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      doc.autoTable({
+        startY: y,
+        head: [['Sl. No', 'Description', 'Unit Price', 'QTY', 'Net Amount', 'Tax Rate', 'Tax Type', 'Tax Amt', 'Total']],
+        // Yahan saare amount columns mein formatNumOnly laga diya hai
+        body: [['1', customDesc, formatNumOnly(gst.base), '1', formatNumOnly(gst.base), `${gst.rate}%`, gst.taxType, formatNumOnly(gst.taxAmt), formatNumOnly(gst.total)]],
+        foot: [['', '', '', '', '', '', '', 'TOTAL:', formatNumOnly(gst.total)]],
+        margin: { left: L, right: 14 },
+        styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 3, textColor: 30 },
+        headStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
+        footStyles: { fillColor: [240, 240, 240], textColor: 30, fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'center' }, // Sl.No
+          1: { halign: 'left' },   // Description (kept left for readability)
+          2: { halign: 'center' }, // Price
+          3: { halign: 'center' }, // Qty
+          4: { halign: 'center' }, // Net
+          5: { halign: 'center' }, // Tax Rate
+          6: { halign: 'center' }, // Tax Type
+          7: { halign: 'center' }, // Tax Amt
+          8: { halign: 'center' }  // Total
+        }
+      });
+
+      y = doc.lastAutoTable.finalY + 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      if (gst.isSame) {
+        doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, { align: 'right' }); y += 4.5;
+        doc.text(`CGST @ ${gst.rate / 2}%: ${fmtINRPdf(gst.cgst)}`, R, y, { align: 'right' }); y += 4.5;
+        doc.text(`SGST @ ${gst.rate / 2}%: ${fmtINRPdf(gst.sgst)}`, R, y, { align: 'right' }); y += 4.5;
+      } else {
+        doc.text(`Base Amount: ${fmtINRPdf(gst.base)}`, R, y, { align: 'right' }); y += 4.5;
+        doc.text(`IGST @ ${gst.rate}%: ${fmtINRPdf(gst.igst)}`, R, y, { align: 'right' }); y += 4.5;
+      }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+      doc.text(`Total: ${fmtINRPdf(gst.total)}`, R, y, { align: 'right' }); y += 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      const wl = doc.splitTextToSize(`Amount in Words: ${words}`, W);
+      doc.setFillColor(249, 249, 249); doc.rect(L, y - 3, W, wl.length * 4.5 + 3, 'F');
+      doc.text(wl, L + 2, y); y += wl.length * 4.5 + 5;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`From ${coName}`, L, y); y += 8;
+      doc.setDrawColor(200); doc.line(L, y, R, y); y += 5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('SOLD BY', L, y); y += 5;
+      doc.text(coName, L, y); y += 4.5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      if (coAddr) { const ls = doc.splitTextToSize(coAddr, 90); doc.text(ls, L, y); y += ls.length * 4; }
+      if (coPan) { doc.setFont('helvetica', 'bold'); doc.text(`PAN No: ${coPan}`, L, y); doc.setFont('helvetica', 'normal'); y += 4; }
+      if (coGst) { doc.setFont('helvetica', 'bold'); doc.text(`GST Registration No: ${coGst}`, L, y); doc.setFont('helvetica', 'normal'); y += 4; }
+      if (coCin) { doc.text(`CIN No: ${coCin}`, L, y); y += 4; }
+      const ph = doc.internal.pageSize.height;
+      doc.setFont('helvetica', 'bold'); doc.internal.pageSize.height;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+      doc.text(`For ${coName}`, R, ph - 20, { align: 'right' });
+      doc.line(R - 40, ph - 16, R, ph - 16);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      doc.text(co.signatory || 'Authorised Signatory', R, ph - 12, { align: 'right' });
+      doc.text(co.designation || 'Director', R, ph - 7, { align: 'right' });
+      return doc.output('blob');
+    }
+
+    /* ═══════════════════════════════════════════════
+       BUILD DOCX
+    ═══════════════════════════════════════════════ */
+    function wP(t, opts = {}) {
+      const bold = opts.bold ? '<w:b/>' : '';
+      const sz = opts.size ? `<w:sz w:val="${opts.size * 2}"/>` : '';
+      const align = opts.align ? `<w:jc w:val="${opts.align}"/>` : '';
+      const ppr = align ? `<w:pPr>${align}</w:pPr>` : '';
+      const rpr = (bold || sz) ? `<w:rPr>${bold}${sz}</w:rPr>` : '';
+      const eX = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(t ?? '').split('\n').map(line => `<w:p>${ppr}<w:r>${rpr}<w:t xml:space="preserve">${eX(line)}</w:t></w:r></w:p>`).join('');
+    }
+    function wTR(cells, opts = {}) {
+      return `<w:tr>${cells.map(c => `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${wP(c, opts)}</w:tc>`).join('')}</w:tr>`;
+    }
+    function wTable(rows) {
+      const b = `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>`;
+      return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${b}</w:tblPr>${rows}</w:tbl>`;
+    }
+    async function buildDOCX(row, profile, invNum) {
+      const co = S.company || {}; const p = profile || {};
+      const gst = getGSTInfo(row, profile);
+      const merchantName = row['_billName'] || p.name || '';
+      const fullBillAddr = [row['_billAddress'] || p.address, row['_billCity'] || p.city, row['_billState'] || p.state, row['_billPin'] || p.pin].filter(Boolean).join(', ');
+      const shipName = row['_shipName'] || merchantName;
+      const fullShipAddr = [row['_shipAddress'] || row['_billAddress'] || p.address, row['_shipCity'] || row['_billCity'] || p.city, row['_shipState'] || row['_billState'] || p.state, row['_shipPin'] || row['_billPin'] || p.pin].filter(Boolean).join(', ');
+      const coName = p.name ? p.name : (co.name || '');
+      const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+      const coPan = p.pan ? p.pan : (co.pan || '');
+      const coGst = p.gst ? p.gst : (co.gst || '');
+      const coCin = p.cin ? p.cin : (co.cin || '');
+      const words = numWords(gst.total);
+
+      const txDate = parseDate(row['Transaction Date']);
+      const invDate = txDate;
+
+      const lineDescription = row['_description'] ? row['_description'] : 'Settlement Pay';
+      const customDesc = lineDescription;
+
+      const billGST = row['_billGST'] || p.gst || ''; const billPAN = row['_billPAN'] || p.pan || '';
+      let body = '';
+      body += wP('Tax Invoice', { bold: true, size: 14 }); body += wP('(Original for Recipient)', { size: 9 }); body += wP('');
+      body += wP(coName, { bold: true, size: 13, align: 'right' }); body += wP('');
+      body += wTable(wTR([`Invoice Number: ${invNum}`, `Invoice Date: ${invDate}`], { size: 9 }) + wTR([`Transaction Date: ${txDate}`], { size: 9 }));
+      body += wP('');
+      body += wTable(wTR(['BILLING ADDRESS', 'SHIPPING ADDRESS'], { bold: true, size: 8 }) + wTR([[merchantName, fullBillAddr, billGST ? `GST: ${billGST}` : '', billPAN ? `PAN: ${billPAN}` : ''].filter(Boolean).join('\n'), [shipName, fullShipAddr].filter(Boolean).join('\n')], { size: 9 }));
+      body += wP('');
+      body += wTable(wTR(['SI.No', 'Description', 'Unit Price', 'QTY', 'Net Amount', 'Tax Rate', 'Tax Type', 'Tax Amt', 'Total'], { bold: true, size: 8 }) + wTR(['1', customDesc, fmtINR(gst.base), '1', fmtINR(gst.base), `${gst.rate}%`, gst.taxType, fmtINR(gst.taxAmt), fmtINR(gst.total)], { size: 8 }) + wTR(['', '', '', '', '', '', '', 'TOTAL:', fmtINR(gst.total)], { bold: true, size: 8 }));
+      body += wP(''); body += wP(`Base Amount: ${fmtINR(gst.base)}`, { size: 9, align: 'right' });
+      if (gst.isSame) { body += wP(`CGST @ ${gst.rate / 2}%: ${fmtINR(gst.cgst)}`, { size: 9, align: 'right' }); body += wP(`SGST @ ${gst.rate / 2}%: ${fmtINR(gst.sgst)}`, { size: 9, align: 'right' }); }
+      else { body += wP(`IGST @ ${gst.rate}%: ${fmtINR(gst.igst)}`, { size: 9, align: 'right' }); }
+      body += wP(`Total: ${fmtINR(gst.total)}`, { bold: true, size: 11, align: 'right' });
+      body += wP(''); body += wP(`Amount in Words: ${words}`, { size: 9 }); body += wP(`From ${coName}`, { bold: true, size: 10 });
+      body += wP(''); body += wP('SOLD BY', { bold: true, size: 9 }); body += wP(coName, { bold: true, size: 10 });
+      if (coAddr) body += wP(coAddr, { size: 9 }); if (coPan) body += wP(`PAN No: ${coPan}`, { bold: true, size: 9 });
+      if (coGst) body += wP(`GST Registration No: ${coGst}`, { bold: true, size: 9 }); if (coCin) body += wP(`CIN No: ${coCin}`, { size: 9 });
+      body += wP(''); body += wP(`For ${coName}`, { bold: true, size: 10, align: 'right' });
+      body += wP(co.signatory || 'Authorised Signatory', { size: 9, align: 'right' }); body += wP(co.designation || 'Director', { size: 9, align: 'right' });
+      const z = new JSZip();
+      z.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+      z.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+      z.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr></w:body></w:document>`);
+      return z.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    }
+
+    /* ═══════════════════════════════════════════════
+       PAGE: MERCHANT PROFILES
+    ═══════════════════════════════════════════════ */
+    function matchProfile(profile, sellerName) {
+      if (!profile || !sellerName) return false;
+      const a = String(profile.name || '').toLowerCase().trim();
+      const b = String(sellerName || '').toLowerCase().trim();
+
+      // Empty string check takki galat profile match na ho
+      if (!a || !b) return false;
+
+      return a === b || a.includes(b) || b.includes(a);
+    }
+
+    function viewProfiles() {
+      return `
   <div style="margin-bottom:24px;"><h1>Merchant Profiles</h1><p class="page-sub">Store details for each client. State handles automatic tax categorization.</p></div>
   <div class="card">
     <div class="card-title" style="margin-bottom:16px;">Add Merchant Profile</div>
@@ -1654,87 +2423,87 @@ function viewProfiles() {
   <div class="card">
     <div class="card-title">Saved Profiles (${S.profiles.length})</div>
     <div class="profiles-grid">
-      ${S.profiles.map((p,i) => `
+      ${S.profiles.map((p, i) => `
       <div class="profile-card">
         <div class="profile-card-del"><button class="btn btn-danger btn-xs" data-del-p="${i}">✕</button></div>
         ${getProfileLogo(p) ? `<img src="${getProfileLogo(p)}" style="max-height:28px;max-width:110px;object-fit:contain;margin-bottom:6px;display:block;">` : ''}
         <div class="profile-card-name">${esc(p.name)}</div>
         <div class="profile-card-detail">
-          ${p.sellerId?`ID: ${esc(p.sellerId)}<br>`:''}
-          ${[p.city,p.state].filter(Boolean).join(', ')}<br>
-          ${p.gst?`GST: ${esc(p.gst)}<br>`:''}${p.pan?`PAN: ${esc(p.pan)}`:''}
+          ${p.sellerId ? `ID: ${esc(p.sellerId)}<br>` : ''}
+          ${[p.city, p.state].filter(Boolean).join(', ')}<br>
+          ${p.gst ? `GST: ${esc(p.gst)}<br>` : ''}${p.pan ? `PAN: ${esc(p.pan)}` : ''}
         </div>
       </div>`).join('')}
     </div>
   </div>` : `<div class="empty" style="padding:40px 20px;"><div class="empty-icon">🏢</div><h3>No profiles yet</h3><p>Add profiles above.</p></div>`}`;
-}
+    }
 
-function wireProfiles() {
-  let pendingLogoB64 = null;
-  const logoInput   = document.getElementById('pf_logoInput');
-  const logoPreview = document.getElementById('pf_logoPreview');
-  logoPreview?.addEventListener('click', () => logoInput.click());
-  logoInput?.addEventListener('change', e => {
-    const file = e.target.files[0]; if(!file) return;
-    if(file.size > 500000) { toast('Logo too large — max 500 KB.','bad'); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      pendingLogoB64 = ev.target.result;
-      logoPreview.innerHTML = `<img src="${pendingLogoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
-    };
-    reader.readAsDataURL(file);
-  });
-  document.getElementById('pf_removeLogoBtn')?.addEventListener('click', () => {
-    pendingLogoB64 = null;
-    if(logoPreview) logoPreview.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
-  });
+    function wireProfiles() {
+      let pendingLogoB64 = null;
+      const logoInput = document.getElementById('pf_logoInput');
+      const logoPreview = document.getElementById('pf_logoPreview');
+      logoPreview?.addEventListener('click', () => logoInput.click());
+      logoInput?.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        if (file.size > 500000) { toast('Logo too large — max 500 KB.', 'bad'); return; }
+        const reader = new FileReader();
+        reader.onload = ev => {
+          pendingLogoB64 = ev.target.result;
+          logoPreview.innerHTML = `<img src="${pendingLogoB64}" style="max-height:52px;max-width:100%;object-fit:contain;padding:4px;">`;
+        };
+        reader.readAsDataURL(file);
+      });
+      document.getElementById('pf_removeLogoBtn')?.addEventListener('click', () => {
+        pendingLogoB64 = null;
+        if (logoPreview) logoPreview.innerHTML = `<span class="logo-placeholder">No logo — click Upload</span>`;
+      });
 
-  document.getElementById('saveProfileBtn')?.addEventListener('click', async () => {
-    const name = document.getElementById('pf_name').value.trim();
-    if(!name) { toast('Name target is required.','bad'); return; }
-    const newProfile = {
-      id      : uid(), name,
-      sellerId: document.getElementById('pf_sid').value.trim(),
-      gst     : document.getElementById('pf_gst').value.trim(),
-      pan     : document.getElementById('pf_pan').value.trim(),
-      cin     : document.getElementById('pf_cin').value.trim(),
-      email   : document.getElementById('pf_email').value.trim(),
-      address : document.getElementById('pf_address').value.trim(),
-      city    : document.getElementById('pf_city').value.trim(),
-      state   : document.getElementById('pf_state').value.trim(),
-      pin     : document.getElementById('pf_pin').value.trim(),
-      logoUrl : null,
-    };
-    try {
-      if(supaReady && pendingLogoB64) {
-        newProfile.logoUrl = await uploadProfileLogoToStorage(pendingLogoB64, newProfile.id);
-      }
-    } catch(e) { toast('Logo upload failed','bad'); }
-    S.profiles.push(newProfile);
-    try { if(supaReady) await dbSaveProfiles(S.profiles); } catch(e) {}
-    toast('Profile saved.','good'); render();
-  });
-  document.querySelectorAll('[data-del-p]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      S.profiles.splice(+btn.dataset.delP, 1);
-      try { if(supaReady) await dbSaveProfiles(S.profiles); } catch(e) {}
-      render();
-    });
-  });
-}
+      document.getElementById('saveProfileBtn')?.addEventListener('click', async () => {
+        const name = document.getElementById('pf_name').value.trim();
+        if (!name) { toast('Name target is required.', 'bad'); return; }
+        const newProfile = {
+          id: uid(), name,
+          sellerId: document.getElementById('pf_sid').value.trim(),
+          gst: document.getElementById('pf_gst').value.trim(),
+          pan: document.getElementById('pf_pan').value.trim(),
+          cin: document.getElementById('pf_cin').value.trim(),
+          email: document.getElementById('pf_email').value.trim(),
+          address: document.getElementById('pf_address').value.trim(),
+          city: document.getElementById('pf_city').value.trim(),
+          state: document.getElementById('pf_state').value.trim(),
+          pin: document.getElementById('pf_pin').value.trim(),
+          logoUrl: null,
+        };
+        try {
+          if (supaReady && pendingLogoB64) {
+            newProfile.logoUrl = await uploadProfileLogoToStorage(pendingLogoB64, newProfile.id);
+          }
+        } catch (e) { toast('Logo upload failed', 'bad'); }
+        S.profiles.push(newProfile);
+        try { if (supaReady) await dbSaveProfiles(S.profiles); } catch (e) { }
+        toast('Profile saved.', 'good'); render();
+      });
+      document.querySelectorAll('[data-del-p]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          S.profiles.splice(+btn.dataset.delP, 1);
+          try { if (supaReady) await dbSaveProfiles(S.profiles); } catch (e) { }
+          render();
+        });
+      });
+    }
 
-/* ═══════════════════════════════════════════════
-   PAGE: LIBRARY
-═══════════════════════════════════════════════ */
-function viewLibrary() {
-  const inv   = S.savedInvoices;
-  const total = inv.reduce((s,i)=>s+cleanNum(i.amount),0);
-  return `
+    /* ═══════════════════════════════════════════════
+       PAGE: LIBRARY
+    ═══════════════════════════════════════════════ */
+    function viewLibrary() {
+      const inv = S.savedInvoices;
+      const total = inv.reduce((s, i) => s + cleanNum(i.amount), 0);
+      return `
   <div style="margin-bottom:24px;"><h1>Saved Invoices</h1><p class="page-sub">All invoices are stored safely in your cloud database cache.</p></div>
   <div class="stats-strip" style="grid-template-columns:repeat(3,1fr);">
     <div class="stat accent"><div class="stat-val">${inv.length}</div><div class="stat-lbl">Total Invoices</div></div>
-    <div class="stat"><div class="stat-val">${[...new Set(inv.map(i=>i.merchant))].length}</div><div class="stat-lbl">Unique Merchants</div></div>
-    <div class="stat green"><div class="stat-val">${total>0?fmtINR(total):'—'}</div><div class="stat-lbl">Total Value</div></div>
+    <div class="stat"><div class="stat-val">${[...new Set(inv.map(i => i.merchant))].length}</div><div class="stat-lbl">Unique Merchants</div></div>
+    <div class="stat green"><div class="stat-val">${total > 0 ? fmtINR(total) : '—'}</div><div class="stat-lbl">Total Value</div></div>
   </div>
   ${inv.length ? `
   <div class="card">
@@ -1749,17 +2518,17 @@ function viewLibrary() {
       <table class="data-table">
         <thead><tr><th>Invoice No</th><th>Merchant Target</th><th>Amount</th><th>UTR</th><th>Saved</th><th>Download</th></tr></thead>
         <tbody>
-          ${inv.map(i=>`
+          ${inv.map(i => `
           <tr>
             <td style="font-weight:700;">${esc(i.invNum)}</td>
             <td>${esc(i.merchant)}</td>
             <td style="font-weight:700;color:var(--green);">${fmtINR(i.amount)}</td>
-            <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(i.utr||'')}</td>
+            <td style="font-family:monospace;font-size:11px;color:var(--muted);">${esc(i.utr || '')}</td>
             <td style="font-size:11px;color:var(--muted);">${fmt(i.savedAt)}</td>
             <td>
               <div class="row" style="gap:5px;">
-                ${i.pdfUrl?`<a href="${esc(i.pdfUrl)}" target="_blank" class="btn btn-ghost btn-xs">⬇ PDF</a>`:''}
-                ${i.docxUrl?`<a href="${esc(i.docxUrl)}" target="_blank" class="btn btn-ghost btn-xs">⬇ DOCX</a>`:''}
+                ${i.pdfUrl ? `<a href="${esc(i.pdfUrl)}" target="_blank" class="btn btn-ghost btn-xs">⬇ PDF</a>` : ''}
+                ${i.docxUrl ? `<a href="${esc(i.docxUrl)}" target="_blank" class="btn btn-ghost btn-xs">⬇ DOCX</a>` : ''}
                 <button class="btn btn-danger btn-xs" data-lib-del="${esc(i.id)}">✕</button>
               </div>
             </td>
@@ -1769,43 +2538,43 @@ function viewLibrary() {
     </div>
   </div>` : `
   <div class="empty"><div class="empty-icon">📁</div><h3>No invoices saved yet</h3><p>Generated invoices appear here automatically.</p></div>`}`;
-}
+    }
 
-function wireLibrary() {
-  document.getElementById('libRefreshBtn')?.addEventListener('click', async () => {
-    try {
-      S.savedInvoices = await dbLoadInvoices();
-      render(); toast('Refreshed from cloud.','good');
-    } catch(e) { toast('Refresh failed','bad'); }
-  });
-  document.getElementById('libClearBtn')?.addEventListener('click', async () => {
-    if(!confirm(`Delete all ${S.savedInvoices.length} saved invoices? This cannot be undone.`)) return;
-    try {
-      await dbClearInvoices();
-      S.savedInvoices = S.savedInvoices = [];
-      toast('All invoices deleted from cloud.','');
-      render();
-    } catch(e) { toast('Delete failed','bad'); }
-  });
-  document.querySelectorAll('[data-lib-del]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if(!confirm('Delete this invoice?')) return;
-      try {
-        await dbDeleteInvoice(btn.dataset.libDel);
-        S.savedInvoices = S.savedInvoices.filter(i=>i.id!==btn.dataset.libDel);
-        toast('Invoice deleted.',''); render();
-      } catch(e) { toast('Delete failed','bad'); }
-    });
-  });
-}
+    function wireLibrary() {
+      document.getElementById('libRefreshBtn')?.addEventListener('click', async () => {
+        try {
+          S.savedInvoices = await dbLoadInvoices();
+          render(); toast('Refreshed from cloud.', 'good');
+        } catch (e) { toast('Refresh failed', 'bad'); }
+      });
+      document.getElementById('libClearBtn')?.addEventListener('click', async () => {
+        if (!confirm(`Delete all ${S.savedInvoices.length} saved invoices? This cannot be undone.`)) return;
+        try {
+          await dbClearInvoices();
+          S.savedInvoices = S.savedInvoices = [];
+          toast('All invoices deleted from cloud.', '');
+          render();
+        } catch (e) { toast('Delete failed', 'bad'); }
+      });
+      document.querySelectorAll('[data-lib-del]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this invoice?')) return;
+          try {
+            await dbDeleteInvoice(btn.dataset.libDel);
+            S.savedInvoices = S.savedInvoices.filter(i => i.id !== btn.dataset.libDel);
+            toast('Invoice deleted.', ''); render();
+          } catch (e) { toast('Delete failed', 'bad'); }
+        });
+      });
+    }
 
-/* ═══════════════════════════════════════════════
-   PAGE: SELLER SETUP
-═══════════════════════════════════════════════ */
-function viewSettings() {
-  const c = S.company || {};
-  const logoSrc = getLogoSrc();
-  return `
+    /* ═══════════════════════════════════════════════
+       PAGE: SELLER SETUP
+    ═══════════════════════════════════════════════ */
+    function viewSettings() {
+      const c = S.company || {};
+      const logoSrc = getLogoSrc();
+      return `
   <div style="margin-bottom:24px;"><h1>Seller Setup</h1><p class="page-sub">Configure primary business billing rules below.</p></div>
   <div class="card">
     <div class="card-title">🖼 Company Logo</div>
@@ -1822,123 +2591,124 @@ function viewSettings() {
     </div>
     <div class="card-title">🏢 Company Details</div>
     <div class="grid2">
-      <div class="field"><label>Company Name *</label><input type="text" id="co_name" value="${esc(c.name||'')}" placeholder="Your company name"></div>
-      <div class="field"><label>PAN Number</label><input type="text" id="co_pan" value="${esc(c.pan||'')}" placeholder="AANCP1985H"></div>
-      <div class="field"><label>GST Number</label><input type="text" id="co_gst" value="${esc(c.gst||'')}" placeholder="29AANCP1985H1ZS"></div>
-      <div class="field"><label>CIN Number</label><input type="text" id="co_cin" value="${esc(c.cin||'')}" placeholder="U74999KA2022PTC165574"></div>
-      <div class="field"><label>Email</label><input type="text" id="co_email" value="${esc(c.email||'')}" placeholder="accounts@company.com"></div>
-      <div class="field"><label>Phone</label><input type="text" id="co_phone" value="${esc(c.phone||'')}" placeholder="+91 98765 43210"></div>
+      <div class="field"><label>Company Name *</label><input type="text" id="co_name" value="${esc(c.name || '')}" placeholder="Your company name"></div>
+      <div class="field"><label>PAN Number</label><input type="text" id="co_pan" value="${esc(c.pan || '')}" placeholder="AANCP1985H"></div>
+      <div class="field"><label>GST Number</label><input type="text" id="co_gst" value="${esc(c.gst || '')}" placeholder="29AANCP1985H1ZS"></div>
+      <div class="field"><label>CIN Number</label><input type="text" id="co_cin" value="${esc(c.cin || '')}" placeholder="U74999KA2022PTC165574"></div>
+      <div class="field"><label>Email</label><input type="text" id="co_email" value="${esc(c.email || '')}" placeholder="accounts@company.com"></div>
+      <div class="field"><label>Phone</label><input type="text" id="co_phone" value="${esc(c.phone || '')}" placeholder="+91 98765 43210"></div>
     </div>
-    <div class="field"><label>Registered Address</label><input type="text" id="co_address" value="${esc(c.address||'')}" placeholder="Street, Area"></div>
+    <div class="field"><label>Registered Address</label><input type="text" id="co_address" value="${esc(c.address || '')}" placeholder="Street, Area"></div>
     <div class="grid3">
-      <div class="field"><label>City</label><input type="text" id="co_city" value="${esc(c.city||'')}" placeholder="City"></div>
-      <div class="field"><label>State</label><input type="text" id="co_state" value="${esc(c.state||'')}" placeholder="Madhya Pradesh"></div>
-      <div class="field"><label>PIN Code</label><input type="text" id="co_pin" value="${esc(c.pin||'')}" placeholder="000000"></div>
+      <div class="field"><label>City</label><input type="text" id="co_city" value="${esc(c.city || '')}" placeholder="City"></div>
+      <div class="field"><label>State</label><input type="text" id="co_state" value="${esc(c.state || '')}" placeholder="Madhya Pradesh"></div>
+      <div class="field"><label>PIN Code</label><input type="text" id="co_pin" value="${esc(c.pin || '')}" placeholder="000000"></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Authorised Signatory</label><input type="text" id="co_signatory" value="${esc(c.signatory||'')}" placeholder="Full name"></div>
-      <div class="field"><label>Designation</label><input type="text" id="co_designation" value="${esc(c.designation||'')}" placeholder="Director"></div>
+      <div class="field"><label>Authorised Signatory</label><input type="text" id="co_signatory" value="${esc(c.signatory || '')}" placeholder="Full name"></div>
+      <div class="field"><label>Designation</label><input type="text" id="co_designation" value="${esc(c.designation || '')}" placeholder="Director"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:8px;">
       <button class="btn btn-primary" id="saveCompanyBtn">Save & Sync to Cloud</button>
     </div>
   </div>`;
-}
+    }
 
-function wireSettings() {
-  const logoInput = document.getElementById('logoInput');
-  if(logoInput) {
-    logoInput.addEventListener('change', e => {
-      const file = e.target.files[0]; if(!file) return;
-      if(file.size > 500000) { toast('Logo too large. Use an image under 500KB.','bad'); return; }
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if(!S.company) S.company = {};
-        S.company.logoB64 = ev.target.result;
-        S.company.logoUrl = null;
-        const box = document.getElementById('logoPreviewBox');
-        if(box) box.innerHTML = `<img src="${ev.target.result}" style="max-width:140px;max-height:64px;object-fit:contain;">`;
-        toast('Logo ready. Save to finalize upload.','good');
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-  document.getElementById('removeLogoBtn')?.addEventListener('click', async () => {
-    if(S.company) { S.company.logoB64 = null; S.company.logoUrl = null; }
-    try { if(supaReady) await dbSaveCompany(S.company || {}); } catch(e) {}
-    toast('Logo removed.',''); render();
-  });
-  document.getElementById('saveCompanyBtn')?.addEventListener('click', async () => {
-    const name = document.getElementById('co_name').value.trim();
-    if(!name) { toast('Company name is required.','bad'); return; }
-    const logoB64 = S.company?.logoB64 || null;
-    const logoUrl = S.company?.logoUrl || null;
-    S.company = {
-      name, logoB64, logoUrl,
-      defaultGstRate : 18,
-      pan         : document.getElementById('co_pan').value.trim(),
-      gst         : document.getElementById('co_gst').value.trim(),
-      cin         : document.getElementById('co_cin').value.trim(),
-      email       : document.getElementById('co_email').value.trim(),
-      phone       : document.getElementById('co_phone').value.trim(),
-      address     : document.getElementById('co_address').value.trim(),
-      city        : document.getElementById('co_city').value.trim(),
-      state       : document.getElementById('co_state').value.trim(),
-      pin         : document.getElementById('co_pin').value.trim(),
-      signatory   : document.getElementById('co_signatory').value.trim(),
-      designation : document.getElementById('co_designation').value.trim(),
-    };
-    try {
-      if(supaReady) {
-        const savedLogoUrl = await dbSaveCompany(S.company);
-        if(savedLogoUrl) { S.company.logoUrl = savedLogoUrl; S.company.logoB64 = null; }
+    function wireSettings() {
+      const logoInput = document.getElementById('logoInput');
+      if (logoInput) {
+        logoInput.addEventListener('change', e => {
+          const file = e.target.files[0]; if (!file) return;
+          if (file.size > 500000) { toast('Logo too large. Use an image under 500KB.', 'bad'); return; }
+          const reader = new FileReader();
+          reader.onload = ev => {
+            if (!S.company) S.company = {};
+            S.company.logoB64 = ev.target.result;
+            S.company.logoUrl = null;
+            const box = document.getElementById('logoPreviewBox');
+            if (box) box.innerHTML = `<img src="${ev.target.result}" style="max-width:140px;max-height:64px;object-fit:contain;">`;
+            toast('Logo ready. Save to finalize upload.', 'good');
+          };
+          reader.readAsDataURL(file);
+        });
       }
-      toast('Seller details saved to cloud!','good');
-    } catch(e) { toast('Save failed','bad'); }
-    render();
-  });
-}
+      document.getElementById('removeLogoBtn')?.addEventListener('click', async () => {
+        if (S.company) { S.company.logoB64 = null; S.company.logoUrl = null; }
+        try { if (supaReady) await dbSaveCompany(S.company || {}); } catch (e) { }
+        toast('Logo removed.', ''); render();
+      });
+      document.getElementById('saveCompanyBtn')?.addEventListener('click', async () => {
+        const name = document.getElementById('co_name').value.trim();
+        if (!name) { toast('Company name is required.', 'bad'); return; }
+        const logoB64 = S.company?.logoB64 || null;
+        const logoUrl = S.company?.logoUrl || null;
+        S.company = {
+          name, logoB64, logoUrl,
+          defaultGstRate: 18,
+          pan: document.getElementById('co_pan').value.trim(),
+          gst: document.getElementById('co_gst').value.trim(),
+          cin: document.getElementById('co_cin').value.trim(),
+          email: document.getElementById('co_email').value.trim(),
+          phone: document.getElementById('co_phone').value.trim(),
+          address: document.getElementById('co_address').value.trim(),
+          city: document.getElementById('co_city').value.trim(),
+          state: document.getElementById('co_state').value.trim(),
+          pin: document.getElementById('co_pin').value.trim(),
+          signatory: document.getElementById('co_signatory').value.trim(),
+          designation: document.getElementById('co_designation').value.trim(),
+        };
+        try {
+          if (supaReady) {
+            const savedLogoUrl = await dbSaveCompany(S.company);
+            if (savedLogoUrl) { S.company.logoUrl = savedLogoUrl; S.company.logoB64 = null; }
+          }
+          toast('Seller details saved to cloud!', 'good');
+        } catch (e) { toast('Save failed', 'bad'); }
+        render();
+      });
+    }
 
-/* ═══════════════════════════════════════════════
-   BOOT
-═══════════════════════════════════════════════ */
-async function boot() {
-  const ok = initSupabase();
-  if(!ok) { setDbStatus('red','Connection failed'); render(); return; }
+    /* ═══════════════════════════════════════════════
+       BOOT
+    ═══════════════════════════════════════════════ */
+    async function boot() {
+      const ok = initSupabase();
+      if (!ok) { setDbStatus('red', 'Connection failed'); render(); return; }
 
-  setDbStatus('amber','Connecting…');
+      setDbStatus('amber', 'Connecting…');
 
-  try {
-    const { error: pingError } = await supa.from('company_settings').select('id').limit(1);
-    if(pingError && pingError.code !== 'PGRST116') throw pingError;
-    supaReady = true;
-    setDbStatus('green','Connected ✓');
-  } catch(e) {
-    setDbStatus('red','Connection failed');
-    goto('settings');
-    return;
-  }
+      try {
+        const { error: pingError } = await supa.from('company_settings').select('id').limit(1);
+        if (pingError && pingError.code !== 'PGRST116') throw pingError;
+        supaReady = true;
+        setDbStatus('green', 'Connected ✓');
+      } catch (e) {
+        setDbStatus('red', 'Connection failed');
+        goto('settings');
+        return;
+      }
 
-  try {
-    const [company, profiles, invoices, uploaded] = await Promise.all([
-      dbLoadCompany(),
-      dbLoadProfiles(),
-      dbLoadInvoices(),
-      dbLoadRows(),
-    ]);
-    S.company          = company;
-    S.profiles         = profiles;
-    S.savedInvoices    = invoices;
-    S.rows             = uploaded.rows || [];
-    S.uploadedFileName = uploaded.fileName || null;
-  } catch(e) {
-    console.error('Data load error:', e);
-  }
+      try {
+        const [company, profiles, invoices, uploaded] = await Promise.all([
+          dbLoadCompany(),
+          dbLoadProfiles(),
+          dbLoadInvoices(),
+          dbLoadRows(),
+        ]);
+        S.company = company;
+        S.profiles = profiles;
+        S.savedInvoices = invoices;
+        S.rows = uploaded.rows || [];
+        S.uploadedFileName = uploaded.fileName || null;
+      } catch (e) {
+        console.error('Data load error:', e);
+      }
 
-  goto(S.company ? 'invoices' : 'settings');
-}
+      goto(S.company ? 'invoices' : 'settings');
+    }
 
-boot();
-</script>
+    boot();
+  </script>
 </body>
+
 </html>
