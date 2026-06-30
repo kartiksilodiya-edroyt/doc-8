@@ -1059,8 +1059,11 @@ function buildInvoiceHTML(row, profile, invNum) {
   const txDate      = parseDate(row['Transaction Date']);
   const invDate     = txDate; 
 
-  const coName      = co.name || '';
-  const coAddr      = [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coName = p.name ? p.name : (co.name || '');
+  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPan  = p.pan ? p.pan : (co.pan || '');
+  const coGst  = p.gst ? p.gst : (co.gst || '');
+  const coCin  = p.cin ? p.cin : (co.cin || '');
   const logoSrc     = row['_logoB64'] || row['_logoUrl'] || getProfileLogo(profile) || getLogoSrc();
 
   const totalsRows = gst.isSame
@@ -1135,9 +1138,9 @@ function buildInvoiceHTML(row, profile, invNum) {
         <div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>
         <div class="co-name">${esc(coName)}</div>
         ${coAddr ? `<div>${wrapAddressLines(coAddr)}</div>` : ''}
-        ${co.pan ? `<div><b>PAN No: ${esc(co.pan)}</b></div>` : ''}
-        ${co.gst ? `<div><b>GST Registration No: ${esc(co.gst)}</b></div>` : ''}
-        ${co.cin ? `<div><b>CIN No:</b> ${esc(co.cin)}</div>` : ''}
+        ${coPan ? `<div><b>PAN No: ${esc(coPan)}</b></div>` : ''}
+        ${coGst ? `<div><b>GST Registration No: ${esc(coGst)}</b></div>` : ''}
+        ${coCin ? `<div><b>CIN No:</b> ${esc(coCin)}</div>` : ''}
       </div>
       <div class="inv-sign">
         <div class="sig-line"></div>
@@ -1272,7 +1275,12 @@ function showEditModal(rowIdx) {
     const totalsRows = gst.isSame
       ? `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>CGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.cgst)}</td></tr><tr><td>SGST @ ${gst.rate/2}%</td><td style="text-align:right;">${fmtINR(gst.sgst)}</td></tr>`
       : `<tr><td>Base Amount</td><td style="text-align:right;">${fmtINR(gst.base)}</td></tr><tr><td>IGST @ ${gst.rate}%</td><td style="text-align:right;">${fmtINR(gst.igst)}</td></tr>`;
-    const coName = co.name||''; const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+    const p = profile || {};
+    const coName = p.name ? p.name : (co.name || '');
+    const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+    const coPan  = p.pan ? p.pan : (co.pan || '');
+    const coGst  = p.gst ? p.gst : (co.gst || '');
+    const coCin  = p.cin ? p.cin : (co.cin || '');
     return `<div class="inv-paper">
       <div class="inv-top">
         <div class="inv-title-block"><h2>Tax Invoice</h2><p>(Original for Recipient)</p></div>
@@ -1299,7 +1307,7 @@ function showEditModal(rowIdx) {
       ${coName?`<div class="inv-from">From ${esc(coName)}</div>`:''}
       <hr class="inv-rule-light">
       <div class="inv-footer">
-        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName?`<div class="co-name">${esc(coName)}</div>`:''}${coAddr?`<div>${wrapAddressLines(coAddr)}</div>`:''}${co.pan?`<div><b>PAN No: ${esc(co.pan)}</b></div>`:''}${co.gst?`<div><b>GST Registration No: ${esc(co.gst)}</b></div>`:''}${co.cin?`<div><b>CIN No:</b> ${esc(co.cin)}</div>`:''}</div>
+        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName?`<div class="co-name">${esc(coName)}</div>`:''}${coAddr?`<div>${wrapAddressLines(coAddr)}</div>`:''}${coPan?`<div><b>PAN No: ${esc(coPan)}</b></div>`:''}${coGst?`<div><b>GST Registration No: ${esc(coGst)}</b></div>`:''}${coCin?`<div><b>CIN No:</b> ${esc(coCin)}</div>`:''}</div>
         <div class="inv-sign"><div class="sig-line"></div>${coName?`<div class="sig-name">For ${esc(coName)}</div>`:''}<div style="color:#888;">${esc(co.signatory||'Authorised Signatory')}</div><div>${esc(co.designation||'Director')}</div></div>
       </div>
     </div>`;
@@ -1413,8 +1421,11 @@ async function buildPDF(row, profile, invNum) {
   const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
   const shipName     = row['_shipName']    || merchantName;
   const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const coName = co.name  || '';
-  const coAddr  = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const coName = p.name ? p.name : (co.name || '');
+  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPan  = p.pan ? p.pan : (co.pan || '');
+  const coGst  = p.gst ? p.gst : (co.gst || '');
+  const coCin  = p.cin ? p.cin : (co.cin || '');
   const words   = numWords(gst.total);
   
   const txDate  = parseDate(row['Transaction Date']);
@@ -1473,13 +1484,14 @@ async function buildPDF(row, profile, invNum) {
   if(billPAN) { doc.setFont('helvetica','bold'); doc.text(`PAN: ${billPAN}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
   y = Math.max(ly,ry)+4;
  
-  const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const formatNumOnly = n => cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   doc.autoTable({
     startY: y,
     head:[['Sl. No','Description','Unit Price','QTY','Net Amount','Tax Rate','Tax Type','Tax Amt','Total']],
-    body:[['1',customDesc,fmtINRPdf(gst.base),'1',fmtINRPdf(gst.base),`${gst.rate}%`,gst.taxType,formatNumOnly(gst.taxAmt),fmtINRPdf(gst.total)]],
-    foot:[['','','','','','','','TOTAL:',fmtINRPdf(gst.total)]],
+    // Yahan saare amount columns mein formatNumOnly laga diya hai
+    body:[['1',customDesc,formatNumOnly(gst.base),'1',formatNumOnly(gst.base),`${gst.rate}%`,gst.taxType,formatNumOnly(gst.taxAmt),formatNumOnly(gst.total)]],
+    foot:[['','','','','','','','TOTAL:',formatNumOnly(gst.total)]],
     margin:{left:L, right:14},
     styles:{fontSize:8, overflow:'linebreak', cellPadding:3, textColor:30},
     headStyles:{fillColor:[240,240,240],textColor:30,fontStyle:'bold'},
@@ -1510,9 +1522,9 @@ async function buildPDF(row, profile, invNum) {
   doc.text(coName, L, y); y+=4.5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   if(coAddr){ const ls=doc.splitTextToSize(coAddr,90); doc.text(ls,L,y); y+=ls.length*4; }
-  if(co.pan) { doc.setFont('helvetica','bold'); doc.text(`PAN No: ${co.pan}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
-  if(co.gst) { doc.setFont('helvetica','bold'); doc.text(`GST Registration No: ${co.gst}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
-  if(co.cin) { doc.text(`CIN No: ${co.cin}`, L, y); y+=4; }
+  if(coPan) { doc.setFont('helvetica','bold'); doc.text(`PAN No: ${coPan}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
+  if(coGst) { doc.setFont('helvetica','bold'); doc.text(`GST Registration No: ${coGst}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
+  if(coCin) { doc.text(`CIN No: ${coCin}`, L, y); y+=4; }
   const ph = doc.internal.pageSize.height;
   doc.setFont('helvetica','bold'); doc.internal.pageSize.height;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
@@ -1550,7 +1562,11 @@ async function buildDOCX(row, profile, invNum) {
   const fullBillAddr = [row['_billAddress']||p.address, row['_billCity']||p.city, row['_billState']||p.state, row['_billPin']||p.pin].filter(Boolean).join(', ');
   const shipName     = row['_shipName']    || merchantName;
   const fullShipAddr = [row['_shipAddress']||row['_billAddress']||p.address, row['_shipCity']||row['_billCity']||p.city, row['_shipState']||row['_billState']||p.state, row['_shipPin']||row['_billPin']||p.pin].filter(Boolean).join(', ');
-  const coName = co.name || ''; const coAddr = [co.address,co.city,co.state,co.pin].filter(Boolean).join(', ');
+  const coName = p.name ? p.name : (co.name || ''); 
+  const coAddr = p.name ? [p.address, p.city, p.state, p.pin].filter(Boolean).join(', ') : [co.address, co.city, co.state, co.pin].filter(Boolean).join(', ');
+  const coPan  = p.pan ? p.pan : (co.pan || '');
+  const coGst  = p.gst ? p.gst : (co.gst || '');
+  const coCin  = p.cin ? p.cin : (co.cin || '');
   const words = numWords(gst.total); 
   
   const txDate = parseDate(row['Transaction Date']);
@@ -1574,8 +1590,8 @@ async function buildDOCX(row, profile, invNum) {
   body += wP(`Total: ${fmtINR(gst.total)}`,{bold:true,size:11,align:'right'});
   body += wP(''); body += wP(`Amount in Words: ${words}`,{size:9}); body += wP(`From ${coName}`,{bold:true,size:10});
   body += wP(''); body += wP('SOLD BY',{bold:true,size:9}); body += wP(coName,{bold:true,size:10});
-  if(coAddr) body += wP(coAddr,{size:9}); if(co.pan) body += wP(`PAN No: ${co.pan}`,{bold:true,size:9});
-  if(co.gst) body += wP(`GST Registration No: ${co.gst}`,{bold:true,size:9}); if(co.cin) body += wP(`CIN No: ${co.cin}`,{size:9});
+  if(coAddr) body += wP(coAddr,{size:9}); if(coPan) body += wP(`PAN No: ${coPan}`,{bold:true,size:9});
+  if(coGst) body += wP(`GST Registration No: ${coGst}`,{bold:true,size:9}); if(coCin) body += wP(`CIN No: ${coCin}`,{size:9});
   body += wP(''); body += wP(`For ${coName}`,{bold:true,size:10,align:'right'});
   body += wP(co.signatory||'Authorised Signatory',{size:9,align:'right'}); body += wP(co.designation||'Director',{size:9,align:'right'});
   const z = new JSZip();
