@@ -540,6 +540,25 @@ const cleanNum = v => {
 };
 const fmtINR = n => '₹'+cleanNum(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 
+/* Wrap a comma-separated address into multiple short lines (joined with <br>)
+   instead of one long run-on line. Escapes each segment for safe HTML use. */
+function wrapAddressLines(addr, maxLineLen) {
+  if(!addr) return '';
+  maxLineLen = maxLineLen || 45;
+  const parts = String(addr).split(',').map(s => s.trim()).filter(Boolean);
+  const lines = [];
+  let cur = [], curLen = 0;
+  parts.forEach(p => {
+    if(curLen + p.length > maxLineLen && cur.length) {
+      lines.push(cur.join(', '));
+      cur = []; curLen = 0;
+    }
+    cur.push(p); curLen += p.length + 2;
+  });
+  if(cur.length) lines.push(cur.join(', '));
+  return lines.map(esc).join(',<br>');
+}
+
 function b64ToBlob(d, mime) {
   if(!d) return null;
   const bin = atob(d.split(',')[1]);
@@ -978,14 +997,14 @@ function buildInvoiceHTML(row, profile, invNum) {
         <div class="inv-addr-label">Billing Address</div>
         <div class="inv-addr-body">
           <b>${esc(merchantName)}</b><br>
-          ${fullBillAddr ? esc(fullBillAddr)+'<br>' : ''}
-          ${merchantGST ? `GST: ${esc(merchantGST)}<br>` : ''}
-          ${merchantPAN ? `PAN: ${esc(merchantPAN)}<br>` : ''}
+          ${fullBillAddr ? wrapAddressLines(fullBillAddr)+'<br>' : ''}
+          ${merchantGST ? `<b>GST: ${esc(merchantGST)}</b><br>` : ''}
+          ${merchantPAN ? `<b>PAN: ${esc(merchantPAN)}</b><br>` : ''}
         </div>
       </div>
       <div class="inv-addr-col">
         <div class="inv-addr-label">Shipping Address</div>
-        <div class="inv-addr-body"><b>${esc(merchantName)}</b><br>${fullBillAddr ? esc(fullBillAddr) : '—'}</div>
+        <div class="inv-addr-body"><b>${esc(merchantName)}</b><br>${fullBillAddr ? wrapAddressLines(fullBillAddr) : '—'}</div>
       </div>
     </div>
     <table class="inv-table">
@@ -1025,9 +1044,9 @@ function buildInvoiceHTML(row, profile, invNum) {
       <div class="inv-sold-by">
         <div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>
         <div class="co-name">${esc(coName)}</div>
-        ${coAddr ? `<div>${esc(coAddr)}</div>` : ''}
-        ${co.pan ? `<div><b>PAN No:</b> ${esc(co.pan)}</div>` : ''}
-        ${co.gst ? `<div><b>GST Registration No:</b> ${esc(co.gst)}</div>` : ''}
+        ${coAddr ? `<div>${wrapAddressLines(coAddr)}</div>` : ''}
+        ${co.pan ? `<div><b>PAN No: ${esc(co.pan)}</b></div>` : ''}
+        ${co.gst ? `<div><b>GST Registration No: ${esc(co.gst)}</b></div>` : ''}
         ${co.cin ? `<div><b>CIN No:</b> ${esc(co.cin)}</div>` : ''}
       </div>
       <div class="inv-sign">
@@ -1164,8 +1183,8 @@ function showEditModal(rowIdx) {
         <div><b>Seller ID:</b> ${esc(edits.sellerId)}</div>
       </div>
       <div class="inv-addr-row">
-        <div class="inv-addr-col"><div class="inv-addr-label">Billing Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?esc(fullBillAddr)+'<br>':''}${edits.billGST?'GST: '+esc(edits.billGST)+'<br>':''}${edits.billPAN?'PAN: '+esc(edits.billPAN):''}</div></div>
-        <div class="inv-addr-col"><div class="inv-addr-label">Shipping Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?esc(fullBillAddr):'—'}</div></div>
+        <div class="inv-addr-col"><div class="inv-addr-label">Billing Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?wrapAddressLines(fullBillAddr)+'<br>':''}${edits.billGST?'<b>GST: '+esc(edits.billGST)+'</b><br>':''}${edits.billPAN?'<b>PAN: '+esc(edits.billPAN)+'</b>':''}</div></div>
+        <div class="inv-addr-col"><div class="inv-addr-label">Shipping Address</div><div class="inv-addr-body"><b>${esc(edits.billName)}</b><br>${fullBillAddr?wrapAddressLines(fullBillAddr):'—'}</div></div>
       </div>
       <table class="inv-table"><thead><tr><th>SI.No</th><th>Description</th><th>Unit Price</th><th>QTY</th><th>Net Amount</th><th>Tax Rate</th><th>Tax Type</th><th>Tax Amount</th><th>Total Amount</th></tr></thead>
       <tbody><tr><td>1</td><td>${desc}<br><span style="color:#666;font-size:9px;">Ref: ${esc(edits.txRef)}</span></td>
@@ -1178,7 +1197,7 @@ function showEditModal(rowIdx) {
       ${coName?`<div class="inv-from">From ${esc(coName)}</div>`:''}
       <hr class="inv-rule-light">
       <div class="inv-footer">
-        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName?`<div class="co-name">${esc(coName)}</div>`:''}${coAddr?`<div>${esc(coAddr)}</div>`:''}${co.pan?`<div><b>PAN No:</b> ${esc(co.pan)}</div>`:''}${co.gst?`<div><b>GST Registration No:</b> ${esc(co.gst)}</div>`:''}${co.cin?`<div><b>CIN No:</b> ${esc(co.cin)}</div>`:''}</div>
+        <div class="inv-sold-by"><div style="font-size:9px;color:#777;margin-bottom:3px;">SOLD BY</div>${coName?`<div class="co-name">${esc(coName)}</div>`:''}${coAddr?`<div>${wrapAddressLines(coAddr)}</div>`:''}${co.pan?`<div><b>PAN No: ${esc(co.pan)}</b></div>`:''}${co.gst?`<div><b>GST Registration No: ${esc(co.gst)}</b></div>`:''}${co.cin?`<div><b>CIN No:</b> ${esc(co.cin)}</div>`:''}</div>
         <div class="inv-sign"><div class="sig-line"></div>${coName?`<div class="sig-name">For ${esc(coName)}</div>`:''}<div style="color:#888;">${esc(co.signatory||'Authorised Signatory')}</div><div>${esc(co.designation||'Director')}</div></div>
       </div>
     </div>`;
@@ -1329,8 +1348,8 @@ function buildPDF(row, profile, invNum) {
   }
   const billGST = row['_billGST'] || p.gst || '';
   const billPAN = row['_billPAN'] || p.pan || '';
-  if(billGST) { doc.text(`GST: ${billGST}`,L,ly); ly+=4; }
-  if(billPAN) { doc.text(`PAN: ${billPAN}`,L,ly); ly+=4; }
+  if(billGST) { doc.setFont('helvetica','bold'); doc.text(`GST: ${billGST}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
+  if(billPAN) { doc.setFont('helvetica','bold'); doc.text(`PAN: ${billPAN}`,L,ly); doc.setFont('helvetica','normal'); ly+=4; }
   y = Math.max(ly,ry)+4;
   doc.autoTable({
     startY: y,
@@ -1366,8 +1385,8 @@ function buildPDF(row, profile, invNum) {
   doc.text(coName, L, y); y+=4.5;
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   if(coAddr){ const ls=doc.splitTextToSize(coAddr,90); doc.text(ls,L,y); y+=ls.length*4; }
-  if(co.pan) { doc.text(`PAN No: ${co.pan}`, L, y); y+=4; }
-  if(co.gst) { doc.text(`GST Registration No: ${co.gst}`, L, y); y+=4; }
+  if(co.pan) { doc.setFont('helvetica','bold'); doc.text(`PAN No: ${co.pan}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
+  if(co.gst) { doc.setFont('helvetica','bold'); doc.text(`GST Registration No: ${co.gst}`, L, y); doc.setFont('helvetica','normal'); y+=4; }
   if(co.cin) { doc.text(`CIN No: ${co.cin}`, L, y); y+=4; }
   const ph = doc.internal.pageSize.height;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
@@ -1422,8 +1441,8 @@ async function buildDOCX(row, profile, invNum) {
   body += wP(`Total: ${fmtINR(gst.total)}`,{bold:true,size:11,align:'right'});
   body += wP(''); body += wP(`Amount in Words: ${words}`,{size:9}); body += wP(`From ${coName}`,{bold:true,size:10});
   body += wP(''); body += wP('SOLD BY',{bold:true,size:9}); body += wP(coName,{bold:true,size:10});
-  if(coAddr) body += wP(coAddr,{size:9}); if(co.pan) body += wP(`PAN No: ${co.pan}`,{size:9});
-  if(co.gst) body += wP(`GST Registration No: ${co.gst}`,{size:9}); if(co.cin) body += wP(`CIN No: ${co.cin}`,{size:9});
+  if(coAddr) body += wP(coAddr,{size:9}); if(co.pan) body += wP(`PAN No: ${co.pan}`,{bold:true,size:9});
+  if(co.gst) body += wP(`GST Registration No: ${co.gst}`,{bold:true,size:9}); if(co.cin) body += wP(`CIN No: ${co.cin}`,{size:9});
   body += wP(''); body += wP(`For ${coName}`,{bold:true,size:10,align:'right'});
   body += wP(co.signatory||'Authorised Signatory',{size:9,align:'right'}); body += wP(co.designation||'Director',{size:9,align:'right'});
   const z = new JSZip();
