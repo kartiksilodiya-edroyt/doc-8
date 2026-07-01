@@ -1443,18 +1443,23 @@
       return 'INV-' + settlementId;
     }
 
-    function parseDate(raw) {
-      if (!raw) return '';
-      if (raw instanceof Date) return raw.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      if (typeof raw === 'number' && raw > 1000) {
-        const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
-        return d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      }
-      const s = String(raw).trim();
-      const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
-      if (m) return `${String(m[1]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[3]}`;
-      return s;
-    }
+function parseDate(raw) {
+  if (!raw) return '';
+  if (raw instanceof Date) return raw.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (typeof raw === 'number' && raw > 1000) {
+    const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  const s = String(raw).trim();
+
+  // NEW: handle ISO date/datetime strings like "2026-06-27T17:27:49.999Z" or "2026-06-27"
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+
+  const m = s.match(/(\d+)\/(\d+)\/(\d+)/);
+  if (m) return `${String(m[1]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[3]}`;
+  return s;
+}
 
     function getLogoSrc() {
       const co = S.company || {};
